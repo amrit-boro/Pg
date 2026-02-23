@@ -188,7 +188,7 @@ CREATE INDEX idx_listings_host          ON listings (host_id);
 CREATE INDEX idx_listings_status        ON listings (status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_listings_available     ON listings (available_from, available_to) WHERE status = 'active';
 CREATE INDEX idx_listings_price         ON listings (price_per_month) WHERE status = 'active';
-CREATE INDEX idx_listings_type          ON listings (listing_type);
+CREATE INDEX idx_listings_type          ON listings (listing_type); ✅Done
 CREATE INDEX idx_listings_title_trgm    ON listings USING GIN (title gin_trgm_ops);
 
 

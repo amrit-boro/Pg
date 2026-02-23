@@ -61,13 +61,28 @@ exports.getRoom = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pgRepo.getRoomById(id);
+
+    // 1. Check if the result is empty or null
+    if (!result || (Array.isArray(result) && result.length === 0)) {
+      return res.status(404).json({
+        success: false,
+        message: `Room with ID ${id} not found`,
+      });
+    }
+
+    // 2. Success case
     return res.status(200).json({
       success: true,
       data: result,
     });
   } catch (error) {
-    console.log("Error", error.message);
-    throw new Error(error);
+    console.error("Error fetching room:", error.message);
+
+    // 3. Proper error response instead of throwing
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -126,44 +141,105 @@ exports.getRoom = async (req, res) => {
 
 //===========================================================================================
 
+// exports.createRoom = async (req, res) => {
+//   const client = await pool.connect();
+
+//   try {
+//     const pgData = { ...req.body };
+//     await client.query("BEGIN");
+
+//     // 1️⃣ Create listing
+//     const newListing = await pgRepo.createListing(client, pgData);
+
+//     // 2️⃣ Upload image if exists
+//     let uploadedPhoto = null;
+//     if (req.file) {
+//       const result = await streamUpload(req.file.buffer);
+
+//       uploadedPhoto = await pgRepo.addPhoto(client, {
+//         listing_id: newListing.id,
+//         url: result.secure_url,
+//         public_id: result.public_id,
+//         caption: req.body.caption,
+//         is_cover: true,
+//         sort_order: 0,
+//       });
+//     }
+
+//     await client.query("COMMIT");
+
+//     return res.status(201).json({
+//       success: true,
+//       listing: newListing,
+//       photo: uploadedPhoto,
+//     });
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     if (result?.public_id) {
+//       await cloudinary.uploader.destroy(result.public_id);
+//     }
+//     return res.status(500).json({ error: error.message });
+//   } finally {
+//     client.release();
+//   }
+// };
+
 exports.createRoom = async (req, res) => {
   const client = await pool.connect();
 
+  let uploadResults = [];
+
   try {
-    const pgData = { ...req.body };
+    if (!req.files || req.files.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "You must upload at least 3 photos",
+      });
+    }
+
+    // uplload images FIRST (outside transaction)
+    uploadResults = await Promise.all(
+      req.files.map((file) => streamUpload(file.buffer)),
+    );
+
     await client.query("BEGIN");
 
     // 1️⃣ Create listing
-    const newListing = await pgRepo.createListing(client, pgData);
+    const newListing = await pgRepo.createListing(client, { ...req.body });
 
-    // 2️⃣ Upload image if exists
-    let uploadedPhoto = null;
-    if (req.file) {
-      const result = await streamUpload(req.file.buffer);
-
-      uploadedPhoto = await pgRepo.addPhoto(client, {
-        listing_id: newListing.id,
-        url: result.secure_url,
-        public_id: result.public_id,
-        caption: req.body.caption,
-        is_cover: true,
-        sort_order: 0,
-      });
-    }
+    // 2️⃣ Upload multiple images in parallel
+    const photos = uploadResults.map((result, i) => ({
+      listing_id: newListing.id,
+      url: result.secure_url,
+      public_id: result.public_id,
+      caption: req.body.caption || null,
+      is_cover: i === 0,
+      sort_order: i,
+    }));
+    const savedPhotos = await pgRepo.bulkInsertPhotos(client, photos);
 
     await client.query("COMMIT");
 
     return res.status(201).json({
       success: true,
       listing: newListing,
-      photo: uploadedPhoto,
+      photos: savedPhotos,
     });
+
+    // upload multiple imgaes paralle....
   } catch (error) {
     await client.query("ROLLBACK");
-    if (result?.public_id) {
-      await cloudinary.uploader.destroy(result.public_id);
+    if (uploadResults && uploadResults.length > 0) {
+      await Promise.all(
+        uploadResults.map((r) => {
+          cloudinary.uploader.destroy(r.public_id);
+        }),
+      );
     }
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   } finally {
     client.release();
   }
@@ -173,11 +249,10 @@ exports.deleteRoom = async (req, res) => {
   try {
     const { id: listing_id } = req.params;
     const { host_id } = req.body;
-    const deleteRoom = await pgRepo.deleteRoom({ listing_id, host_id });
+    await pgRepo.deleteRoom({ listing_id, host_id });
     return res.status(201).json({
       success: true,
       message: "Succesfully deleted!!",
-      data: deleteRoom,
     });
   } catch (error) {
     console.log("Error:", error.message);

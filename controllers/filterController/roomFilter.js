@@ -3,18 +3,12 @@ const filterRepo = require("../../service/filterRoom/filterRoom");
 exports.filterListings = async (req, res) => {
   try {
     const filterData = { ...req.query };
-    const { minPrice, maxPrice, city, type } = filterData;
-    const filterValues = await filterRepo.filterByPrice({
-      minPrice,
-      maxPrice,
-      city,
-      type,
-    });
+    const filterValues = await filterRepo.filterListings(filterData);
 
     if (!filterValues || filterValues.length === 0) {
       return res.status(200).json({
         success: true,
-        message: "Ooops product not found ):",
+        message: "Ooops room not found ):",
         total: 0,
         data: [],
       });

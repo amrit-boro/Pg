@@ -26,6 +26,22 @@ class PgRepo {
       loc.country_code,
       loc.latitude,
       loc.longitude,
+      loc.geog,
+
+      (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'photoid',ph.id,
+              'url', ph.url,
+              'public_ic',ph.public_id,
+              'caption',ph.caption
+            )
+          ),'[]'
+        )
+        FROM listing_photos ph
+        WHERE ph.listing_id = l.id
+      ) AS photos,
 
       (
         SELECT COALESCE(
@@ -80,8 +96,22 @@ class PgRepo {
       loc.country_code,
       loc.latitude,
       loc.longitude,
+      loc.geog,
 
-    (
+      (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'url', ph.url,
+              'caption',ph.caption
+            )
+          ),'[]'
+        )
+        FROM listing_photos ph
+        WHERE ph.listing_id = l.id
+      ) AS photos,
+
+      (
         SELECT COALESCE(
             JSON_AGG(
                 JSON_BUILD_OBJECT(
@@ -173,6 +203,44 @@ class PgRepo {
     return rows[0];
   }
 
+  static async bulkInsertPhotos(client, photos) {
+    if (!photos || photos.length === 0) return [];
+
+    const columns = [
+      "listing_id",
+      "url",
+      "public_id",
+      "caption",
+      "is_cover",
+      "sort_order",
+    ];
+
+    const values = [];
+    const placeholders = photos.map((photo, i) => {
+      const offset = i * columns.length;
+
+      values.push(
+        photo.listing_id,
+        photo.url,
+        photo.public_id,
+        photo.caption,
+        photo.is_cover,
+        photo.sort_order,
+      );
+
+      return `(${columns.map((_, j) => `$${offset + j + 1}`).join(", ")})`;
+    });
+
+    const query = `
+    INSERT INTO listing_photos (${columns.join(", ")})
+    VALUES ${placeholders.join(", ")}
+    RETURNING *;
+  `;
+
+    const { rows } = await client.query(query, values);
+    return rows;
+  }
+
   static async createReview({
     reviewer_id,
     listing_id,
@@ -223,18 +291,36 @@ class PgRepo {
     }
   }
 
-  // delete Room ------------------
+  // SOFT delete Room ------------------
+  // static async deleteRoom({ listing_id, host_id }) {
+  //   const query = `
+  //     UPDATE listings
+  //     SET
+  //         deleted_at = NOW(),
+  //         updated_at = NOW(),
+  //         status = 'deactivated'
+  //     WHERE id = $1
+  //       AND host_id = $2
+  //       AND deleted_at IS NULL
+  //     RETURNING *;
+  //   `;
+  //   const values = [listing_id, host_id];
+  //   try {
+  //     const rows = await pool.query(query, values);
+  //     return rows[0];
+  //   } catch (error) {
+  //     console.log("Error: ", error.message);
+  //     throw new Error("Error from the database for deleting Room..");
+  //   }
+  // }
+
+  // HARD DELETE
   static async deleteRoom({ listing_id, host_id }) {
     const query = `
-      UPDATE listings
-      SET 
-          deleted_at = NOW(),
-          updated_at = NOW(),
-          status = 'deactivated'
+      DELETE FROM listings
       WHERE id = $1
         AND host_id = $2
-        AND deleted_at IS NULL
-      RETURNING *;
+      ;
     `;
     const values = [listing_id, host_id];
     try {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-URL="http://localhost:8000/api/v1/listings?maxPrice=9000&city=Bangalore"
+URL="http://localhost:8000/api/v1/pg/getAllPgRoom"
 TOTAL_REQUESTS=10000
 CONCURRENCY=100
 
