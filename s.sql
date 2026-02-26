@@ -27,7 +27,7 @@ CREATE TYPE report_reason     AS ENUM ('spam', 'inappropriate', 'fraud', 'safety
 CREATE TYPE report_status     AS ENUM ('open', 'under_review', 'resolved', 'dismissed');
 CREATE TYPE notification_type AS ENUM ('booking_request', 'booking_confirmed', 'booking_cancelled',
                                         'new_message', 'new_review', 'payment', 'system');
-
+CREATE TYPE room_type         AS ENUM ('single','double','tripple','shared');
 
 -- ============================================================
 -- 1. USERS
@@ -138,7 +138,7 @@ CREATE TABLE listings (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
     host_id             UUID            NOT NULL REFERENCES users(id) ON DELETE CAS,
     location_id         UUID            NOT NULL REFERENCES locations(id),
-    title               VARCHAR(200)    NOT NULL,
+    title               VARCHAR(200)    NOT NULL, ////// issue
     description         TEXT,
     listing_type        listing_type    NOT NULL,
     status              listing_status  NOT NULL DEFAULT 'draft',
@@ -196,6 +196,62 @@ CREATE INDEX idx_listings_title_trgm    ON listings USING GIN (title gin_trgm_op
 -- 6. LISTING ↔ AMENITY (many-to-many)
 -- ============================================================
 
+-- =============================================================
+-- ROOM SPECIFIC----------------- NEW🌟
+CREATE TABLE rooms (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    -- Relationship
+    listing_id         UUID NOT NULL
+                       REFERENCES listings(id)
+                       ON DELETE CASCADE,
+
+    -- Identification
+    room_number        VARCHAR(20) NOT NULL,
+    room_type          room_type NOT NULL,  -- single | double | triple | dorm
+    title              VARCHAR(150),
+    description        TEXT,
+
+    -- Capacity
+    capacity           SMALLINT NOT NULL CHECK (capacity > 0),
+    available_beds     SMALLINT NOT NULL CHECK (available_beds >= 0),
+
+    -- Pricing (Room-level pricing)
+    price_per_month    NUMERIC(10,2) NOT NULL CHECK (price_per_month > 0),
+    price_per_week     NUMERIC(10,2),
+    price_per_day      NUMERIC(10,2),
+    security_deposit   NUMERIC(10,2) DEFAULT 0,
+    currency           CHAR(3) NOT NULL DEFAULT 'USD',
+
+    -- Room Attributes
+    floor_number       SMALLINT,
+    floor_area_sqm     NUMERIC(7,2),
+    is_furnished       BOOLEAN NOT NULL DEFAULT FALSE,
+    utility_details    JSONB,
+
+    -- Availability
+    status             room_status NOT NULL DEFAULT 'available',
+    available_from     DATE,
+    available_to       DATE,
+
+    -- Rules (Room-specific override)
+    extra_info         VARCHAR(250),
+
+    -- Aggregates
+    avg_rating         NUMERIC(3,2) DEFAULT 0,
+    review_count       INTEGER DEFAULT 0,
+    view_count         INTEGER DEFAULT 0,
+
+    -- Soft delete & timestamps
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at         TIMESTAMPTZ,
+
+    -- Constraints
+    UNIQUE (listing_id, room_number)
+);
+--- ===========================================================================================================================================
+
 CREATE TABLE listing_amenities (
     listing_id  UUID    NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
     amenity_id  INTEGER NOT NULL REFERENCES amenities(id) ON DELETE CASCADE,
@@ -235,6 +291,24 @@ CREATE INDEX idx_photos_listing ON listing_photos (listing_id, sort_order);
 CREATE UNIQUE INDEX idx_photos_one_cover ON listing_photos (listing_id)
     WHERE is_cover = TRUE;
 
+
+--- ROOM PHOTOS--------------------------------------------------🌟
+
+CREATE TABLE rooms_photos (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    room_id  UUID NOT NULL
+                REFERENCES rooms(id)
+                ON DELETE CASCADE,
+
+    url         TEXT NOT NULL,
+    public_id   TEXT NOT NULL,
+    caption     VARCHAR(200),
+    is_cover    BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order  SMALLINT NOT NULL DEFAULT 0,
+
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- ============================================================
 -- 8. SAVED / FAVOURITES

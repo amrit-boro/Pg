@@ -32,10 +32,11 @@ class PgRepo {
         SELECT COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
+              'listing_id',l.id,
               'photoid',ph.id,
               'url', ph.url,
-              'public_ic',ph.public_id,
-              'caption',ph.caption
+              'caption',ph.caption,
+              'is_cover',ph.is_cover
             )
           ),'[]'
         )
@@ -78,60 +79,117 @@ class PgRepo {
   static async getRoomById(id) {
     const query = `          
       SELECT
-      l.id,
-      l.title,
-      l.description,
-      l.listing_type,
-      l.price_per_month,
-      l.currency,
-      l.available_from,
-      l.max_occupants,
-      l.utility_details,
-      l.avg_rating,
-      l.review_count,
+        r.id,
+        r.listing_id,
+        r.room_number,
+        r.room_type,
+        r.title,
+        r.description,
+        r.capacity,
+        r.available_beds,
+        r.price_per_month,
+        r.price_per_week,
+        r.price_per_day,
+        r.security_deposit,
+        r.currency,
+        r.floor_number,
+        r.floor_area_sqm,
+        r.is_furnished,
+        r.utility_details,
+        r.status,
+        r.available_from,
+        r.available_to,
+        r.extra_info,
+        r.avg_rating,
+        r.review_count,
+        r.view_count,
 
-      loc.address_line1,
-      loc.city,
-      loc.state,
-      loc.country_code,
-      loc.latitude,
-      loc.longitude,
-      loc.geog,
+        (
+          SELECT COALESCE(
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'photo_id',rp.id,
+                'room_id',rp.room_id,
+                'url',rp.url,
+                'caption',rp.caption,
+                'is_cover',rp.is_cover
+              )
+            ),'[]'
+          )
+          FROM rooms_photos rp
+          WHERE rp.room_id = r.id
+        ) AS room_photo
+
+      FROM rooms r
+      WHERE r.id = $1
+        AND r.deleted_at IS NULL;
+
+    `;
+
+    try {
+      const { rows } = await pool.query(query, [id]);
+      return rows[0];
+    } catch (error) {
+      console.log("Error from the database: ", error.message);
+      throw new Error(
+        `Error from the database for getting single pg room: ${error.message}`,
+      );
+    }
+  }
+
+  // GET ALL ROOMS WITH A SPECIFIC ID-------------------------
+  static async getAllRoomsById(id) {
+    const query = `          
+      SELECT
+      l.id,
 
       (
         SELECT COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
-              'url', ph.url,
-              'caption',ph.caption
+              'listing_id',l.id,
+              'room_id',r.id,
+              'status',r.status,
+              'room_no',r.room_number,
+              'beds',r.available_beds,
+              'price_per_month',r.price_per_month,
+              'price_per_week',r.price_per_week,
+              'price_per_day',r.price_per_day,
+              'security_deposit',r.security_deposit,
+              'currency',r.currency,
+              'floor',r.floor_number,
+              'floor_area',r.floor_area_sqm,
+              'furnished',r.is_furnished,
+              'utility_details', r.utility_details,
+              'available_from',r.available_from,
+              'available_to',r.available_to,
+              'extra_info',r.extra_info,
+              'avg_rating',r.avg_rating,
+              'review_count',r.review_count,
+              'view_count',r.view_count,
+
+              'room_photo',(
+                SELECT COALESCE(
+                  JSON_AGG(
+                    JSON_BUILD_OBJECT(
+                      'photo_id',rp.id,
+                      'room_id',rp.room_id,
+                      'url',rp.url,
+                      'caption',rp.caption
+                    )
+                  ),'[]'
+                )
+                FROM rooms_photos rp
+                WHERE rp.room_id = r.id 
+              )
             )
           ),'[]'
         )
-        FROM listing_photos ph
-        WHERE ph.listing_id = l.id
-      ) AS photos,
-
-      (
-        SELECT COALESCE(
-            JSON_AGG(
-                JSON_BUILD_OBJECT(
-                    'reviewer_id', re.reviewer_id,
-                    'reviewer_name', ru.first_name || ' ' || ru.last_name,
-                    'comment', re.comment,
-                    'rating', re.overall_rating,
-                    'created_at', re.created_at
-                )
-                ORDER BY re.created_at DESC
-            ),
-            '[]'
-        )
-        FROM reviews re
-        LEFT JOIN users ru ON ru.id = re.reviewer_id
-        WHERE re.listing_id = l.id
-    ) AS reviews
+        FROM rooms r
+        WHERE r.listing_id = l.id
+      ) AS rooms
 
     FROM listings l
-    JOIN locations loc ON l.location_id = loc.id
     WHERE l.id = $1
       AND l.deleted_at IS NULL;
           
@@ -141,14 +199,32 @@ class PgRepo {
       const { rows } = await pool.query(query, [id]);
       return rows[0];
     } catch (error) {
-      console.log("Error from the database: ", error);
-      throw new Error("Error from the database for getting single pg room");
+      console.log("Error from the database: ", error.message);
+      throw new Error(
+        `Error from the database for getting single pg room: ${error.message}`,
+      );
     }
   }
+
+  static async createRoom(client, roomData) {
+    const columns = Object.keys(roomData);
+    const value = Object.values(roomData);
+    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
+    const query = `INSERT INTO rooms(${columns.join(", ")}) VALUES(${placeholders}) RETURNING *`;
+    try {
+      const { rows } = await client.query(query, value);
+      return rows[0];
+    } catch (err) {
+      console.log("Error: ", err.message);
+      throw new Error(
+        `Error from the database for creating new room: ${err.message}`,
+      );
+    }
+  }
+
   static async createListing(client, pgData) {
     const columns = Object.keys(pgData);
     const values = Object.values(pgData);
-
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const query = `INSERT INTO listings(${columns.join(", ")}) VALUES(${placeholders}) RETURNING *`;
     try {
@@ -237,6 +313,43 @@ class PgRepo {
     RETURNING *;
   `;
 
+    const { rows } = await client.query(query, values);
+    return rows;
+  }
+
+  static async createRoomsPhotos(client, photos) {
+    if (!photos || photos.length === 0) return [];
+
+    const columns = [
+      "room_id",
+      "url",
+      "public_id",
+      "caption",
+      "is_cover",
+      "sort_order",
+    ];
+
+    const values = [];
+    const placeholders = photos.map((photo, i) => {
+      const offset = i * columns.length;
+
+      values.push(
+        photo.room_id,
+        photo.url,
+        photo.public_id,
+        photo.caption,
+        photo.is_cover,
+        photo.sort_order,
+      );
+
+      return `(${columns.map((_, j) => `$${offset + j + 1}`).join(", ")})`;
+    });
+
+    const query = `
+    INSERT INTO rooms_photos (${columns.join(", ")})
+    VALUES ${placeholders.join(", ")}
+    RETURNING *;
+  `;
     const { rows } = await client.query(query, values);
     return rows;
   }

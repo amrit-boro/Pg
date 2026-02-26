@@ -1,6 +1,6 @@
 const express = require("express");
 const userController = require("../../controllers/userController/controller");
-
+const { upload } = require("../../utils/cloudinary");
 const router = express.Router();
 
 router.param("id", (req, res, next, val) => {
@@ -11,7 +11,7 @@ router.param("id", (req, res, next, val) => {
 router.get("/getAllUser", userController.getAllUsers);
 router.get("/getUser/:id", userController.getUser);
 
-router.post("/createUser", userController.createUser);
+router.post("/createUser", upload.single("image"), userController.createUser);
 router.post("/deleteUser/:id", userController.deleteUser);
 
 module.exports = router;

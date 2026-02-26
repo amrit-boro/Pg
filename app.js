@@ -20,6 +20,6 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/pg", pgRouter);
 
 //filter-pg
-app.use("/api/v1/listings", filterRouter);
+app.use("/api/v1/filterlistings", filterRouter);
 
 module.exports = app;

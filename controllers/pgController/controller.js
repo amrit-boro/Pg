@@ -18,6 +18,21 @@ exports.getAllpg = async (req, res) => {
   }
 };
 
+exports.getAllRoomsByPgId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allRooms = await pgRepo.getAllRoomsById(id);
+    return res.status(200).json({
+      total_room: allRooms.length,
+      success: true,
+      data: allRooms,
+    });
+  } catch (error) {
+    console.log("Error: ", error.message);
+    throw new Error(error);
+  }
+};
+
 exports.reviewRoom = async (req, res) => {
   // console.log(req.body);
   try {
@@ -184,7 +199,7 @@ exports.getRoom = async (req, res) => {
 //   }
 // };
 
-exports.createRoom = async (req, res) => {
+exports.createPgListing = async (req, res) => {
   const client = await pool.connect();
 
   let uploadResults = [];
@@ -227,6 +242,64 @@ exports.createRoom = async (req, res) => {
     });
 
     // upload multiple imgaes paralle....
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if (uploadResults && uploadResults.length > 0) {
+      await Promise.all(
+        uploadResults.map((r) => {
+          cloudinary.uploader.destroy(r.public_id);
+        }),
+      );
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  } finally {
+    client.release();
+  }
+};
+
+exports.createPgRoom = async (req, res) => {
+  const client = await pool.connect();
+  let uploadResults = [];
+
+  try {
+    if (!req.files || req.files.length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: "You must upload at least 3 photos",
+      });
+    }
+
+    // upload image first (without transaction)
+    uploadResults = await Promise.all(
+      req.files.map((file) => streamUpload(file.buffer)),
+    );
+
+    await client.query("BEGIN");
+
+    const newRoom = await pgRepo.createRoom(client, { ...req.body });
+
+    // 2️⃣ Upload multiple images in parallel
+    const photos = uploadResults.map((result, i) => ({
+      room_id: newRoom.id,
+      url: result.secure_url,
+      public_id: result.public_id,
+      caption: req.body.caption || null,
+      is_cover: i === 0,
+      sort_order: i,
+    }));
+    const savedPhotos = await pgRepo.createRoomsPhotos(client, photos);
+
+    await client.query("COMMIT");
+
+    return res.status(201).json({
+      success: true,
+      message: "Room created successfully!!",
+      data: newRoom,
+      photos: savedPhotos,
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     if (uploadResults && uploadResults.length > 0) {
