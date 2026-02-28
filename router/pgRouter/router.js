@@ -3,8 +3,7 @@ const pgController = require("../../controllers/pgController/controller");
 const { upload } = require("../../utils/cloudinary");
 const router = express.Router();
 
-router.get("/getAllPgRoom", pgController.getAllpg);
-router.get("/getRoom/:id", pgController.getRoom);
+router.get("/", pgController.getAllpg);
 
 //posts-----------
 // router.post("/createRoom", upload.single("image"), pgController.createRoom);
@@ -22,9 +21,10 @@ router.post(
 );
 
 router.get("/getAllRooms/:id", pgController.getAllRoomsByPgId);
+router.get("/getRoom/:id", pgController.getRoom);
+router.patch("/updateRoom/:id", pgController.updateRoom);
+router.delete("/deleteRoom/:id", pgController.deleteRoom);
 
 router.post("/createReview", pgController.reviewRoom);
-router.patch("/updateRoom/:id", pgController.updateRoom);
-router.post("/deleteRoom/:id", pgController.deleteRoom);
-
+router.delete("/deleteListing/:id", pgController.deleteListing);
 module.exports = router;

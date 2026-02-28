@@ -3,103 +3,82 @@ const streamifier = require("streamifier");
 const { cloudinary } = require("../../utils/cloudinary");
 const pool = require("../../config/db");
 const streamUpload = require("../../utils/streamUpload");
+const catchAsync = require("../../utils/catchAsync");
+const AppError = require("../../utils/appError");
 
-exports.getAllpg = async (req, res) => {
-  try {
-    const rooms = await pgRepo.findAllPg();
-    return res.status(200).json({
-      total: rooms.length,
-      success: true,
-      data: rooms,
-    });
-  } catch (error) {
-    console.log("Error: ", error.message);
-    throw new Error(error);
+exports.getAllpg = catchAsync(async (req, res, next) => {
+  const filterData = req.query;
+
+  const allpg = await pgRepo.findAllPg(filterData);
+  if (!allpg) {
+    return next(new AppError(`No listing found!!`));
   }
-};
+  res.status(200).json({
+    total: allpg.length,
+    success: true,
+    data: allpg,
+  });
+});
 
-exports.getAllRoomsByPgId = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const allRooms = await pgRepo.getAllRoomsById(id);
-    return res.status(200).json({
-      total_room: allRooms.length,
-      success: true,
-      data: allRooms,
-    });
-  } catch (error) {
-    console.log("Error: ", error.message);
-    throw new Error(error);
+exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const allRooms = await pgRepo.getAllRoomsById(id);
+  if (!allRooms) {
+    return next(new AppError(`No room found with ID ${id}`));
   }
-};
+  res.status(200).json({
+    total_room: allRooms.rooms.length,
+    success: true,
+    data: allRooms,
+  });
+});
 
-exports.reviewRoom = async (req, res) => {
-  // console.log(req.body);
-  try {
-    const { reviewer_id, listing_id, overall_rating, comment } = req.body;
-    const review = pgRepo.createReview({
-      reviewer_id,
-      listing_id,
-      overall_rating,
-      comment,
-    });
-    return res.status(201).json({
-      success: true,
-      data: {
-        review,
-      },
-      message: "Review created successfully!!",
-    });
-  } catch (error) {
-    console.log("Error: ", error.message);
-    throw new Error(error);
+exports.reviewRoom = catchAsync(async (req, res, next) => {
+  const { reviewer_id, listing_id, overall_rating, comment } = req.body;
+  const review = pgRepo.createReview({
+    reviewer_id,
+    listing_id,
+    overall_rating,
+    comment,
+  });
+  return res.status(201).json({
+    success: true,
+    data: {
+      review,
+    },
+    message: "Review created successfully!!",
+  });
+});
+
+// UPDATE ROOM BY ID ==========================================
+
+exports.updateRoom = catchAsync(async (req, res, next) => {
+  const updateFields = { ...req.body };
+  const { id } = req.params;
+  const updatedRoom = await pgRepo.updateRoomById(updateFields, id);
+  return res.status(201).json({
+    success: true,
+    data: updatedRoom,
+  });
+});
+
+// GET ROOM BY ID ============================================
+
+exports.getRoom = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const result = await pgRepo.getRoomById(id);
+
+  // 1. Check if the result is empty or null
+  if (!result || (Array.isArray(result) && result.length === 0)) {
+    return next(new AppError(`No room found with id ${id}`, 404));
   }
-};
 
-exports.updateRoom = async (req, res) => {
-  try {
-    const updateFields = { ...req.body };
-    const { id } = req.params;
-    console.log(updateFields, id);
-    const updatedRoom = await pgRepo.updateRoomById(updateFields, id);
-    return res.status(201).json({
-      success: true,
-      data: updatedRoom,
-    });
-  } catch (err) {
-    console.log("Error: ", err.message);
-    throw new Error(err);
-  }
-};
-
-exports.getRoom = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pgRepo.getRoomById(id);
-
-    // 1. Check if the result is empty or null
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      return res.status(404).json({
-        success: false,
-        message: `Room with ID ${id} not found`,
-      });
-    }
-
-    // 2. Success case
-    return res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error("Error fetching room:", error.message);
-
-    // 3. Proper error response instead of throwing
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
-  }
-};
+  // 2. Success case
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
 
 // exports.createRoom = async (req, res) => {
 //   try {
@@ -128,7 +107,7 @@ exports.getRoom = async (req, res) => {
 //     const pgData = {
 //       ...req.body,
 //       image_url: image_url,
-//       image_public_id: publicId,
+//       image_public_id: publicId,updateRoom
 //     };
 
 //     const newPg = await pgRepo.createPg(pgData);
@@ -199,30 +178,93 @@ exports.getRoom = async (req, res) => {
 //   }
 // };
 
-exports.createPgListing = async (req, res) => {
-  const client = await pool.connect();
+// ========================================================================
+// ========================================================================
+// exports.createPgListing = async (req, res) => {
+//   const client = await pool.connect();
 
+//   let uploadResults = [];
+
+//   try {
+//     if (!req.files || req.files.length < 3) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "You must upload at least 3 photos",
+//       });
+//     }
+
+//     // uplload images FIRST (outside transaction)
+//     uploadResults = await Promise.all(
+//       req.files.map((file) => streamUpload(file.buffer)),
+//     );
+
+//     await client.query("BEGIN");
+
+//     // 1️⃣ Create listing
+//     const newListing = await pgRepo.createListing(client, { ...req.body });
+
+//     // 2️⃣ Upload multiple images in parallel
+//     const photos = uploadResults.map((result, i) => ({
+//       listing_id: newListing.id,
+//       url: result.secure_url,
+//       public_id: result.public_id,
+//       caption: req.body.caption || null,
+//       is_cover: i === 0,
+//       sort_order: i,
+//     }));
+//     const savedPhotos = await pgRepo.bulkInsertPhotos(client, photos);
+
+//     await client.query("COMMIT");
+
+//     return res.status(201).json({
+//       success: true,
+//       listing: newListing,
+//       photos: savedPhotos,
+//     });
+
+//     // upload multiple imgaes paralle....
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     if (uploadResults && uploadResults.length > 0) {
+//       await Promise.all(
+//         uploadResults.map((r) => {
+//           cloudinary.uploader.destroy(r.public_id);
+//         }),
+//       );
+//     }
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   } finally {
+//     client.release();
+//   }
+// };
+
+exports.createPgListing = catchAsync(async (req, res, next) => {
+  const client = await pool.connect();
   let uploadResults = [];
 
   try {
     if (!req.files || req.files.length < 3) {
-      return res.status(400).json({
-        success: false,
-        message: "You must upload at least 3 photos",
-      });
+      const error = new Error("You must upload at least 3 photos");
+      error.statusCode = 400;
+      throw error;
     }
 
-    // uplload images FIRST (outside transaction)
+    // 1️⃣ Upload images first (outside transaction)
     uploadResults = await Promise.all(
       req.files.map((file) => streamUpload(file.buffer)),
     );
 
     await client.query("BEGIN");
 
-    // 1️⃣ Create listing
-    const newListing = await pgRepo.createListing(client, { ...req.body });
+    // 2️⃣ Create listing
+    const newListing = await pgRepo.createListing(client, {
+      ...req.body,
+    });
 
-    // 2️⃣ Upload multiple images in parallel
+    // 3️⃣ Prepare photo payload
     const photos = uploadResults.map((result, i) => ({
       listing_id: newListing.id,
       url: result.secure_url,
@@ -231,36 +273,33 @@ exports.createPgListing = async (req, res) => {
       is_cover: i === 0,
       sort_order: i,
     }));
+
     const savedPhotos = await pgRepo.bulkInsertPhotos(client, photos);
 
     await client.query("COMMIT");
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       listing: newListing,
       photos: savedPhotos,
     });
-
-    // upload multiple imgaes paralle....
   } catch (error) {
     await client.query("ROLLBACK");
-    if (uploadResults && uploadResults.length > 0) {
+
+    // Cleanup uploaded images if DB fails
+    if (uploadResults.length > 0) {
       await Promise.all(
-        uploadResults.map((r) => {
-          cloudinary.uploader.destroy(r.public_id);
-        }),
+        uploadResults.map((r) => cloudinary.uploader.destroy(r.public_id)),
       );
     }
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+
+    next(error); // ✅ Forward to global error handler
   } finally {
     client.release();
   }
-};
+});
 
-exports.createPgRoom = async (req, res) => {
+exports.createPgRoom = async (req, res, next) => {
   const client = await pool.connect();
   let uploadResults = [];
 
@@ -309,26 +348,30 @@ exports.createPgRoom = async (req, res) => {
         }),
       );
     }
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+
+    next(error); // Forward to Global error
   } finally {
     client.release();
   }
 };
 
-exports.deleteRoom = async (req, res) => {
-  try {
-    const { id: listing_id } = req.params;
-    const { host_id } = req.body;
-    await pgRepo.deleteRoom({ listing_id, host_id });
-    return res.status(201).json({
-      success: true,
-      message: "Succesfully deleted!!",
-    });
-  } catch (error) {
-    console.log("Error:", error.message);
-    throw new Error(error);
-  }
-};
+exports.deleteListing = catchAsync(async (req, res, next) => {
+  const { id: listing_id } = req.params;
+  const { host_id } = req.body;
+  await pgRepo.deleteListingById({ listing_id, host_id });
+  return res.status(201).json({
+    success: true,
+    message: "Succesfully deleted!!",
+  });
+});
+
+// DELETE room
+exports.deleteRoom = catchAsync(async (req, res) => {
+  const { id: roomId } = req.params;
+  const { listing_id } = req.body;
+  await pgRepo.deleteRoomById({ roomId, listing_id });
+  return res.status(201).json({
+    success: true,
+    message: "Succesfully deleted!!",
+  });
+});

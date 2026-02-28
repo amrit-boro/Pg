@@ -17,7 +17,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";   -- fuzzy text search
 
 CREATE TYPE user_role         AS ENUM ('guest', 'host', 'admin');
 CREATE TYPE gender            AS ENUM ('male', 'female', 'non_binary', 'prefer_not_to_say');
-CREATE TYPE listing_type      AS ENUM ('private_room', 'shared_room', 'entire_unit', 'studio', 'dormitory');
+CREATE TYPE listing_type      AS ENUM ('girls_pg', 'boys_pg', 'entire_unit', 'studio', 'rent');
 CREATE TYPE listing_status    AS ENUM ('draft', 'active', 'paused', 'deactivated');
 CREATE TYPE booking_status    AS ENUM ('pending', 'confirmed', 'cancelled', 'completed', 'rejected');
 CREATE TYPE cancellation_by   AS ENUM ('guest', 'host', 'system');
@@ -28,6 +28,7 @@ CREATE TYPE report_status     AS ENUM ('open', 'under_review', 'resolved', 'dism
 CREATE TYPE notification_type AS ENUM ('booking_request', 'booking_confirmed', 'booking_cancelled',
                                         'new_message', 'new_review', 'payment', 'system');
 CREATE TYPE room_type         AS ENUM ('single','double','tripple','shared');
+CREATE TYPE room_status       AS ENUM ('available','fully_occupied','maintenance','inactive')
 
 -- ============================================================
 -- 1. USERS
@@ -156,7 +157,7 @@ CREATE TABLE listings (
     gender_preference   gender,                              -- NULL = no preference
 
     -- Pricing
-    price_per_month     NUMERIC(10,2)   NOT NULL CHECK (price_per_month > 0),
+    starting_price     NUMERIC(10,2)   NOT NULL CHECK (starting_price > 0),
     price_per_week      NUMERIC(10,2),
     price_per_day       NUMERIC(10,2),
     currency            CHAR(3)         NOT NULL DEFAULT 'USD',

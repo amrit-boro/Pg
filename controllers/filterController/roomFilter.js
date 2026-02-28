@@ -1,26 +1,22 @@
 const filterRepo = require("../../service/filterRoom/filterRoom");
+const catchAsync = require("../../utils/catchAsync");
 
-exports.filterListings = async (req, res) => {
-  try {
-    const filterData = { ...req.query };
-    const filterValues = await filterRepo.filterListings(filterData);
+exports.filterListings = catchAsync(async (req, res) => {
+  const filterData = { ...req.query };
+  const filterValues = await filterRepo.filterListings(filterData);
 
-    if (!filterValues || filterValues.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "Ooops room not found ):",
-        total: 0,
-        data: [],
-      });
-    }
-
+  if (!filterValues || filterValues.length === 0) {
     return res.status(200).json({
-      total: filterValues.length,
       success: true,
-      data: filterValues,
+      message: "Ooops room not found ):",
+      total: 0,
+      data: [],
     });
-  } catch (error) {
-    console.log("Error: ", error.message);
-    throw new Error(error);
   }
-};
+
+  return res.status(200).json({
+    total: filterValues.length,
+    success: true,
+    data: filterValues,
+  });
+});

@@ -1,18 +1,15 @@
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const h = {
+  is_admin: 123,
+  admin: "Amrit",
+};
 
-async function fet() {
-  try {
-    const result = await fetch("http://localhost:8000/api/v1/pg/getAllPgRoom");
-    const user = await result.json();
+const all = ["is_admin"];
 
-    await delay(2000); // 2 second delay
+const result = Object.keys(h)
+  .filter((key) => all.includes(key))
+  .reduce((obj, val) => {
+    obj[val] = h[val];
+    return obj;
+  }, {});
 
-    console.log(user);
-  } catch (err) {
-    console.error(err.message);
-  }
-}
-
-fet();
+console.log(result, typeof result);

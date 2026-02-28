@@ -1,4 +1,5 @@
 const userRepo = require("../../service/user/userRepo");
+const catchAsync = require("../../utils/catchAsync");
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -24,19 +25,15 @@ exports.getUser = async (req, res) => {
   }
 };
 
-exports.createUser = async (req, res) => {
-  try {
-    const userData = req.body;
-    const newUser = await userRepo.createUser(userData);
-    return res.status(201).json({
-      success: true,
-      message: "successful",
-      data: newUser,
-    });
-  } catch (error) {
-    throw new Error("Error :", error);
-  }
-};
+exports.createUser = catchAsync(async (req, res) => {
+  const userData = req.body;
+  const newUser = await userRepo.createUser(userData);
+  res.status(201).json({
+    success: true,
+    message: "successful",
+    data: newUser,
+  });
+});
 
 exports.deleteUser = async (req, res) => {
   try {
