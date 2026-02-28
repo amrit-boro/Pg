@@ -43,6 +43,19 @@ const handleInvalidUUID = (err) => {
   return new AppError(message, 400);
 };
 
+const handleCheckViolationDB = (err) => {
+  const constraint = err.constraint;
+  console.log(constraint);
+  const constraintMessages = {
+    rooms_capacity_check: "Capacity must be greater than 0",
+    rooms_price_per_month_check: "Price must be positive",
+    rooms_rating_check: "Rating must be between 0 and 5",
+  };
+  const message = constraintMessages[constraint] || "Invalid data provided";
+
+  return new AppError(message, 400);
+};
+
 module.exports = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
@@ -55,7 +68,7 @@ module.exports = (err, req, res, next) => {
 
     if (error.code === "22P02") error = handleInvalidUUID(error);
     if (error.code === "23505") error = handleDuplicateDB(error);
-
+    if (error.code === "23514") error = handleCheckViolationDB(error);
     sendErrorProd(error, res);
   }
 };

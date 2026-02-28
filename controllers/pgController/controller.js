@@ -5,6 +5,7 @@ const pool = require("../../config/db");
 const streamUpload = require("../../utils/streamUpload");
 const catchAsync = require("../../utils/catchAsync");
 const AppError = require("../../utils/appError");
+const PgRepo = require("../../service/pg/pgRepo");
 
 exports.getAllpg = catchAsync(async (req, res, next) => {
   const filterData = req.query;
@@ -20,6 +21,25 @@ exports.getAllpg = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.updateListings = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  // Check listing is active or not-----
+  const existingListing = await PgRepo.findListingById(id);
+  if (!existingListing) {
+    return next(new AppError("Pg not found!!", 404));
+  }
+  const updated = await pgRepo.updatePgListingById(id, req.body);
+  if (!updated) {
+    return next(new AppError("Listing not found or deleted!", 404));
+  }
+  res.status(201).json({
+    success: true,
+    data: updated,
+  });
+});
+
+// Rooms related==============================================
+
 exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const allRooms = await pgRepo.getAllRoomsById(id);
@@ -33,29 +53,19 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.reviewRoom = catchAsync(async (req, res, next) => {
-  const { reviewer_id, listing_id, overall_rating, comment } = req.body;
-  const review = pgRepo.createReview({
-    reviewer_id,
-    listing_id,
-    overall_rating,
-    comment,
-  });
-  return res.status(201).json({
-    success: true,
-    data: {
-      review,
-    },
-    message: "Review created successfully!!",
-  });
-});
-
 // UPDATE ROOM BY ID ==========================================
 
 exports.updateRoom = catchAsync(async (req, res, next) => {
   const updateFields = { ...req.body };
   const { id } = req.params;
+  const existingRoom = await pgRepo.getRoomById(id);
+  if (!existingRoom) {
+    return next(new AppError(`Room not found with Id: ${id}!`, 404));
+  }
   const updatedRoom = await pgRepo.updateRoomById(updateFields, id);
+  if (!updatedRoom) {
+    return next(new AppError("Room not found or deleted!", 404));
+  }
   return res.status(201).json({
     success: true,
     data: updatedRoom,
@@ -264,6 +274,11 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
       ...req.body,
     });
 
+    if (!newListing) {
+      await client.query("ROLLBACK");
+      return next(new AppError("Failed to create listing", 500));
+    }
+
     // 3️⃣ Prepare photo payload
     const photos = uploadResults.map((result, i) => ({
       listing_id: newListing.id,
@@ -299,7 +314,7 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
   }
 });
 
-exports.createPgRoom = async (req, res, next) => {
+exports.createPgRoom = catchAsync(async (req, res, next) => {
   const client = await pool.connect();
   let uploadResults = [];
 
@@ -353,13 +368,16 @@ exports.createPgRoom = async (req, res, next) => {
   } finally {
     client.release();
   }
-};
+});
 
 exports.deleteListing = catchAsync(async (req, res, next) => {
   const { id: listing_id } = req.params;
   const { host_id } = req.body;
-  await pgRepo.deleteListingById({ listing_id, host_id });
-  return res.status(201).json({
+  const deleted = await pgRepo.deleteListingById({ listing_id, host_id });
+  if (!deleted) {
+    return next(new AppError("Listing not found or unauthorized!", 404));
+  }
+  res.status(200).json({
     success: true,
     message: "Succesfully deleted!!",
   });
@@ -369,9 +387,29 @@ exports.deleteListing = catchAsync(async (req, res, next) => {
 exports.deleteRoom = catchAsync(async (req, res) => {
   const { id: roomId } = req.params;
   const { listing_id } = req.body;
-  await pgRepo.deleteRoomById({ roomId, listing_id });
-  return res.status(201).json({
+  const deleted = await pgRepo.deleteRoomById({ roomId, listing_id });
+  if (!deleted) {
+    next(new AppError("Room not found or unauthorized", 404));
+  }
+  return res.status(200).json({
     success: true,
     message: "Succesfully deleted!!",
+  });
+});
+
+exports.reviewRoom = catchAsync(async (req, res, next) => {
+  const { reviewer_id, listing_id, overall_rating, comment } = req.body;
+  const review = pgRepo.createReview({
+    reviewer_id,
+    listing_id,
+    overall_rating,
+    comment,
+  });
+  return res.status(201).json({
+    success: true,
+    data: {
+      review,
+    },
+    message: "Review created successfully!!",
   });
 });

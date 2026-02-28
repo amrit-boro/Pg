@@ -20,7 +20,6 @@ app.use("/api/v1/users", userRouter);
 
 // pg
 app.use("/api/v1/pg", pgRouter);
-app.use("/api/v1/getAllPgs", pgRouter);
 
 //filter-pg
 app.use("/api/v1/filterlistings", filterRouter);

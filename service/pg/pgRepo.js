@@ -1,4 +1,5 @@
 const pool = require("../../config/db");
+const AppError = require("../../utils/appError");
 
 class PgRepo {
   // static async findAllPg(filters = {}) {
@@ -84,6 +85,7 @@ class PgRepo {
     const query = `
     SELECT
       l.id,
+      l.host_id,
       l.title,
       l.description,
       l.listing_type,
@@ -151,12 +153,88 @@ class PgRepo {
       AND l.deleted_at IS NULL
     ORDER BY l.avg_rating DESC;
   `;
-    console.log(query);
-    console.log(listing_type);
 
     const { rows } = await pool.query(query, [listing_type]); // ✅ PASS PARAM HERE
     return rows;
   }
+
+  static async findListingById(id) {
+    const query = `SELECT id FROM listings WHERE id = $1`;
+    const { rowCount } = await pool.query(query, [id]);
+    return rowCount;
+  }
+  static async updatePgListingById(id, updateFields = {}) {
+    const ALLOWED_FIELDS = [
+      "title",
+      "description",
+      "listing_type",
+      "status",
+      "total_rooms",
+      "available_rooms",
+      "max_occupants",
+      "floor_area_sqm",
+      "floor_number",
+      "total_floors",
+      "is_furnished",
+      "allows_pets",
+      "allows_smoking",
+      "gender_preference",
+      "starting_price",
+      "price_per_week",
+      "price_per_day",
+      "security_deposit",
+      "utility_details",
+      "available_from",
+      "available_to",
+      "min_stay_days",
+      "max_stay_days",
+      "house_rules",
+      "extra_info",
+    ];
+
+    const requestKeys = Object.keys(updateFields);
+
+    if (requestKeys.length === 0) {
+      throw new AppError("No fields provided for update", 400);
+    }
+
+    // 🔒 Reject invalid fields explicitly
+    const invalidFields = requestKeys.filter(
+      (key) => !ALLOWED_FIELDS.includes(key),
+    );
+
+    if (invalidFields.length > 0) {
+      throw new AppError(
+        `Can't update fields: ${invalidFields.join(", ")}`,
+        400,
+      );
+    }
+
+    const setClause = requestKeys
+      .map((col, idx) => `${col} = $${idx + 1}`)
+      .join(", ");
+
+    const query = `
+    UPDATE listings
+    SET ${setClause},
+        updated_at = NOW()
+    WHERE id = $${requestKeys.length + 1}
+      AND deleted_at IS NULL
+    RETURNING *;
+  `;
+
+    const { rows, rowCount } = await pool.query(query, [
+      ...requestKeys.map((key) => updateFields[key]),
+      id,
+    ]);
+
+    if (rowCount === 0) {
+      return null; // let controller return 404
+    }
+
+    return rows[0];
+  }
+
   static async getRoomById(id) {
     const query = `          
       SELECT
@@ -479,22 +557,23 @@ class PgRepo {
       "available_to",
       "extra_info",
     ];
+    const requestKeys = Object.keys(updateFields);
+    if (requestKeys.length === 0) {
+      throw new AppError("No fields provided for update", 400);
+    }
+    // 🔒 Reject invalid fields explicitly
+    const invalidFields = requestKeys.filter(
+      (key) => !ALLOWED_FIELDS.includes(key),
+    );
 
-    const filteredFields = Object.keys(updateFields)
-      .filter((key) => ALLOWED_FIELDS.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = updateFields[key];
-        return obj;
-      }, {});
-
-    if (Object.keys(filteredFields).length === 0) {
-      throw new Error("No valid fields provided for update");
+    if (invalidFields.length > 0) {
+      throw new AppError(
+        `Can't update fields: ${invalidFields.join(", ")}`,
+        400,
+      );
     }
 
-    const columns = Object.keys(filteredFields);
-    const values = Object.values(filteredFields);
-
-    const setClause = columns
+    const setClause = requestKeys
       .map((col, idx) => `${col} = $${idx + 1}`)
       .join(", ");
 
@@ -502,7 +581,7 @@ class PgRepo {
       UPDATE rooms
       SET ${setClause},
         updated_at = NOW()
-      WHERE id = $${columns.length + 1}
+      WHERE id = $${requestKeys.length + 1}
         AND deleted_at is NULL
       RETURNING *;
     `;
@@ -560,6 +639,22 @@ class PgRepo {
     const values = [roomId, listing_id];
     const rows = await pool.query(query, values);
     return rows[0];
+  }
+
+  static async getRoomPhotoById(client, id, room_id) {
+    const query =
+      "SELECT public_id FROM rooms_photos WHERE id = $1 AND room_id = $2";
+    const { rows, rowCount } = await client.query(query, [id, room_id]);
+    // console.log("result: ", rows);
+    return { data: rows[0], total: rowCount };
+  }
+
+  static async getListingsPhotoById(client, pohtoID, listing_id) {
+    console.log(pohtoID, listing_id);
+    const query = `SELECT public_id FROM listing_photos WHERE id= $1 AND listing_id =$2`;
+    const { rows, rowCount } = await client.query(query, [pohtoID, listing_id]);
+    console.log("rowss:  ", rows);
+    return { data: rows[0], total: rowCount };
   }
 }
 
