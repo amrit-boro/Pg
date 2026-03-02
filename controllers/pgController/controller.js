@@ -1,5 +1,4 @@
 const pgRepo = require("../../service/pg/pgRepo");
-const streamifier = require("streamifier");
 const { cloudinary } = require("../../utils/cloudinary");
 const pool = require("../../config/db");
 const streamUpload = require("../../utils/streamUpload");
@@ -257,9 +256,7 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
 
   try {
     if (!req.files || req.files.length < 3) {
-      const error = new Error("You must upload at least 3 photos");
-      error.statusCode = 400;
-      throw error;
+      return next(new AppError("You must upload atleast 3 photos", 400));
     }
 
     // 1️⃣ Upload images first (outside transaction)

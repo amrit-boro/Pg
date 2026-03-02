@@ -56,6 +56,12 @@ const handleCheckViolationDB = (err) => {
   return new AppError(message, 400);
 };
 
+// FILE
+const handleFileCheck = (err) => {
+  const message = "File size exceeds 5MB limit";
+  return new AppError(message, 400);
+};
+
 module.exports = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
@@ -69,6 +75,7 @@ module.exports = (err, req, res, next) => {
     if (error.code === "22P02") error = handleInvalidUUID(error);
     if (error.code === "23505") error = handleDuplicateDB(error);
     if (error.code === "23514") error = handleCheckViolationDB(error);
+    if (error.code === "LIMIT_FILE_SIZE") error = handleFileCheck(error);
     sendErrorProd(error, res);
   }
 };

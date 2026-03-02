@@ -1,9 +1,9 @@
 const h = {
   is_admin: 123,
-  admin: "Amrit",
+  name: "Amrit",
 };
 
-const all = ["is_admin"];
+const all = ["name"];
 
 const result = Object.keys(h)
   .filter((key) => all.includes(key))
@@ -12,4 +12,4 @@ const result = Object.keys(h)
     return obj;
   }, {});
 
-console.log(result, typeof result);
+console.log(result);

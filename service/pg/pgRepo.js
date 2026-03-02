@@ -356,8 +356,41 @@ class PgRepo {
   }
 
   static async createRoom(client, roomData) {
-    const columns = Object.keys(roomData);
-    const value = Object.values(roomData);
+    const allowedFields = [
+      "listing_id",
+      "room_number",
+      "room_type",
+      "title",
+      "description",
+      "capacity",
+      "available_beds",
+      "price_per_month",
+      "price_per_week",
+      "price_per_day",
+      "security_deposite",
+      "currency",
+      "floor_number",
+      "floor_area_sqm",
+      "is_furnished",
+      "utility_details",
+      "status",
+      "available_from",
+      "available_to",
+      "extra_info",
+    ];
+    const payload = Object.keys(roomData)
+      .filter((key) => allowedFields.includes(key))
+      .reduce((obj, val) => {
+        obj[val] = roomData[val];
+        return obj;
+      }, {});
+
+    if (Object.keys(payload).length === 0) {
+      throw new Error("No valid fields provided");
+    }
+
+    const columns = Object.keys(payload);
+    const value = Object.values(payload);
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const query = `INSERT INTO rooms(${columns.join(", ")}) VALUES(${placeholders}) RETURNING *`;
 
@@ -366,8 +399,50 @@ class PgRepo {
   }
 
   static async createListing(client, pgData) {
-    const columns = Object.keys(pgData);
-    const values = Object.values(pgData);
+    const allowedFields = [
+      "host_id",
+      "location_id",
+      "title",
+      "description",
+      "listing_type",
+      "total_rooms",
+      "available_rooms",
+      "max_occupants",
+      "floor_area_sqm",
+      "floor_number",
+      "total_floors",
+      "is_furnished",
+      "allows_pets",
+      "allows_smoking",
+      "gender_preference",
+      "starting_price",
+      "price_per_week",
+      "price_per_day",
+      "currency",
+      "security_deposit",
+      "utilities_included",
+      "utility_details",
+      "available_from",
+      "available_to",
+      "min_stay_days",
+      "max_stay_days",
+      "house_rules",
+      "extra_info",
+    ];
+
+    const payload = Object.keys(pgData)
+      .filter((key) => allowedFields.includes(key))
+      .reduce((obj, val) => {
+        obj[val] = pgData[val];
+        return obj;
+      }, {});
+
+    if (Object.keys(payload).length === 0) {
+      throw new Error("No valid fields provided!");
+    }
+    const columns = Object.keys(payload);
+    const values = Object.values(payload);
+
     const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
     const query = `INSERT INTO listings(${columns.join(", ")}) VALUES(${placeholders}) RETURNING *`;
 
