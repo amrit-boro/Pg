@@ -18,6 +18,18 @@ exports.getpgs = catchAsync(async (req, res, next) => {
     data: pgresult,
   });
 });
+exports.getpg = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const pgresult = await pgRepo.getListingById(id);
+  if (!pgresult) {
+    return next(new AppError("No listing found", 400));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: pgresult,
+  });
+});
 
 exports.getAllpg = catchAsync(async (req, res, next) => {
   const filterData = req.query;
@@ -310,7 +322,6 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-
     // Cleanup uploaded images if DB fails
     if (uploadResults.length > 0) {
       await Promise.all(

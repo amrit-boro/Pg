@@ -13,11 +13,17 @@ router.patch("/updateListing/:id", pgController.updateListings);
 
 // Listings related--------------------------
 router.delete("/deleteListing/:id", pgController.deleteListing);
+router.get("/getListingById/:id", pgController.getpg);
 router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
 router.post(
   "/createPgListing",
   upload.array("image", 10),
   pgController.createPgListing,
+);
+router.post(
+  "/uploadListingsPhotos/:id",
+  upload.array("image", 10),
+  photoController.uploadListingPhoto,
 );
 
 // Room related--------------------------------

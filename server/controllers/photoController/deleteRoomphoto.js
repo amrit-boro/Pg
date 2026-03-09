@@ -3,6 +3,48 @@ const pool = require("../../config/db");
 const PgRepo = require("../../service/pg/pgRepo");
 const { cloudinary } = require("../../utils/cloudinary");
 const AppError = require("../../utils/appError");
+const streamUpload = require("../../utils/streamUpload");
+
+exports.uploadListingPhoto = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+
+  try {
+    if (!req.files || req.files.length < 3) {
+      return next(new AppError("You must upload atleast 3 photos", 400));
+    }
+    uploadResults = await Promise.all(
+      req.files.map((file) => streamUpload(file.buffer)),
+    );
+
+    const pglisting = await PgRepo.findListingById(id);
+    if (!pglisting) {
+      return next(new AppError(`There is no room with Id ${id}`, 400));
+    }
+
+    const photos = uploadResults.map((result, i) => ({
+      listing_id: id,
+      url: result.secure_url,
+      public_id: result.public_id,
+      caption: req.body.caption || null,
+      is_cover: i === 0,
+      sort_order: i,
+    }));
+
+    await PgRepo.bulkInsertPhotos(client, photos);
+    res.status(201).json({
+      success: true,
+      message: "uploaded successfully",
+    });
+  } catch (err) {
+    if (uploadResults.length > 0) {
+      await Promise.all(
+        uploadResults.map((r) => cloudinary.uploader.destroy(r.public_id)),
+      );
+    }
+    next(err); // ✅ Forward to global error handler
+  }
+});
 
 exports.deletePhoto = catchAsync(async (req, res, next) => {
   const client = await pool.connect();

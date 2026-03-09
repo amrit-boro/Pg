@@ -161,6 +161,54 @@ class PgRepo {
     return rows;
   }
 
+  static async getListingById(id) {
+    const query = `
+    SELECT 
+      l.id,
+      l.host_id,
+      l.location_id,
+      l.title,
+      l.description,
+      l.listing_type,
+      l.status,
+      l.total_rooms,
+      l.available_rooms,
+      l.max_occupants,
+      l.allows_smoking,
+      l.starting_price,
+      l.security_deposit,
+      l.utilities_included,
+      l.utility_details,
+      l.house_rules,
+      l.extra_info,
+      l.avg_rating,
+
+      (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'listing_id', ph.listing_id,
+              'photoid', ph.id,
+              'url', ph.url,
+              'caption', ph.caption,
+              'is_cover', ph.is_cover
+            )
+          ), '[]'
+        )
+        FROM listing_photos ph
+        WHERE ph.listing_id = l.id
+      ) AS photos
+
+    FROM listings l
+    WHERE l.id = $1
+      AND l.status = 'active'
+      AND l.deleted_at IS NULL
+  `;
+
+    const { rows } = await pool.query(query, [id]);
+    return rows[0];
+  }
+
   static async findListingById(id) {
     const query = `SELECT id FROM listings WHERE id = $1`;
     const { rowCount } = await pool.query(query, [id]);
@@ -412,6 +460,7 @@ class PgRepo {
       "total_rooms",
       "available_rooms",
       "max_occupants",
+      "status",
       "floor_area_sqm",
       "floor_number",
       "total_floors",
