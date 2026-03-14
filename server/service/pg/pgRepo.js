@@ -183,6 +183,14 @@ class PgRepo {
       l.extra_info,
       l.avg_rating,
 
+      loc.address_line1,
+      loc.city,
+      loc.state,
+      loc.country_code,
+      loc.latitude,
+      loc.longitude,
+      loc.geog,
+
       (
         SELECT COALESCE(
           JSON_AGG(
@@ -200,6 +208,7 @@ class PgRepo {
       ) AS photos
 
     FROM listings l
+    JOIN locations loc ON l.location_id = loc.id
     WHERE l.id = $1
       AND l.status = 'active'
       AND l.deleted_at IS NULL
@@ -289,31 +298,27 @@ class PgRepo {
   static async getRoomById(id) {
     const query = `          
       SELECT
-        l.id,
-        l.listing_id,
-        l.room_number,
-        l.room_type,
-        l.title,
-        l.description,
-        l.capacity,
-        l.available_beds,
-        l.price_per_month,
-        l.price_per_week,
-        l.price_per_day,
-        l.security_deposit,
-        l.currency,
-        l.floor_number,
-        l.floor_area_sqm,
-        l.is_furnished,
-        l.utility_details,
-        l.status,
-        l.available_from,
-        l.available_to,
-        l.extra_info,
-        l.avg_rating,
-        l.review_count,
-        l.view_count,
-        l.capacity,
+        r.id,
+        r.listing_id,
+        r.room_number,
+        r.room_type,
+        r.title,
+        r.description,
+        r.capacity,
+        r.available_beds,
+        r.price_per_month,
+        r.security_deposit,
+        r.floor_number,
+        r.floor_area_sqm,
+        r.is_furnished,
+        r.utility_details,
+        r.status,
+        r.available_from,
+        r.available_to,
+        r.extra_info,
+        r.avg_rating,
+        r.review_count,
+        r.view_count,
 
         (
           SELECT COALESCE(
@@ -327,9 +332,25 @@ class PgRepo {
               )
             ),'[]'
           )
-          FROM listings rp
-          WHERE rp.listing_id = r.id
-        ) AS room_photo
+          FROM rooms_photos rp
+          WHERE rp.room_id = r.id
+            AND rp.media_type = 'image'
+        ) AS images,
+        
+        (
+          SELECT COALESCE(
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'id',rp.id,
+                'url',rp.url,
+                'caption',rp.caption
+              )
+            ), '[]'
+          )
+          FROM rooms_photos as rp
+          WHERE rp.room_id = r.id
+            AND rp.media_type = 'video'
+        ) AS video
 
       FROM rooms r
       WHERE r.id = $1
@@ -342,68 +363,62 @@ class PgRepo {
   }
 
   // GET ALL ROOMS WITH A SPECIFIC ID-------------------------
-  static async getAllRoomsById(id) {
-    const query = `          
-      SELECT
+  static async getAllRoomsById(type, pgId) {
+    const query = `
+    SELECT
       l.id,
-
       (
         SELECT COALESCE(
           JSON_AGG(
             JSON_BUILD_OBJECT(
-              'listing_id',l.id,
-              'room_id',r.id,
-              'room_type',r.room_type,
-              'status',r.status,
-              'room_no',r.room_number,
-              'beds',r.available_beds,
-              'price_per_month',r.price_per_month,
-              'price_per_week',r.price_per_week,
-              'price_per_day',r.price_per_day,
-              'security_deposit',r.security_deposit,
-              'currency',r.currency,
-              'floor',r.floor_number,
-              'floor_area',r.floor_area_sqm,
-              'furnished',r.is_furnished,
+              'listing_id', l.id,
+              'room_id', r.id,
+              'room_type', r.room_type,
+              'status', r.status,
+              'room_no', r.room_number,
+              'beds', r.available_beds,
+              'price_per_month', r.price_per_month,
+              'price_per_week', r.price_per_week,
+              'price_per_day', r.price_per_day,
+              'security_deposit', r.security_deposit,
+              'currency', r.currency,
+              'floor', r.floor_number,
+              'floor_area', r.floor_area_sqm,
+              'furnished', r.is_furnished,
               'utility_details', r.utility_details,
-              'available_from',r.available_from,
-              'available_to',r.available_to,
-              'extra_info',r.extra_info,
-              'avg_rating',r.avg_rating,
-              'review_count',r.review_count,
-              'view_count',r.view_count,
-              'capacity',r.capacity,
+              'available_from', r.available_from,
+              'available_to', r.available_to,
+              'extra_info', r.extra_info,
+              'avg_rating', r.avg_rating,
+              'review_count', r.review_count,
+              'view_count', r.view_count,
+              'capacity', r.capacity,
 
-              'room_photo',(
-                SELECT COALESCE(
-                  JSON_AGG(
-                    JSON_BUILD_OBJECT(
-                      'photo_id',rp.id,
-                      'room_id',rp.room_id,
-                      'url',rp.url,
-                      'caption',rp.caption
-                    )
-                  ),'[]'
+              'room_photo', (
+                SELECT JSON_BUILD_OBJECT(
+                  'photo_id', rp.id,
+                  'room_id', rp.room_id,
+                  'url', rp.url,
+                  'caption', rp.caption
                 )
                 FROM rooms_photos rp
-                WHERE rp.room_id = r.id 
+                WHERE rp.room_id = r.id
+                LIMIT 1
               )
-            ) ORDER BY r.avg_rating DESC,
-                       r.price_per_month
-          ),'[]'
+            )
+            ORDER BY r.avg_rating DESC, r.price_per_month
+          ), '[]'
         )
         FROM rooms r
         WHERE r.listing_id = l.id
-         
+        AND r.room_type = $2
       ) AS rooms
-
     FROM listings l
     WHERE l.id = $1
-      AND l.deleted_at IS NULL;
-          
-    `;
+    AND l.deleted_at IS NULL;
+  `;
 
-    const { rows } = await pool.query(query, [id]);
+    const { rows } = await pool.query(query, [pgId, type]);
     return rows[0];
   }
 
@@ -503,6 +518,24 @@ class PgRepo {
     return rows[0];
   }
 
+  static async getTotal(id) {
+    console.log(id);
+    const query = `
+      SELECT 
+        room_type AS type,
+        COUNT(*) AS total
+      FROM rooms
+      WHERE listing_id = $1
+        AND status = 'available'
+        AND deleted_at IS NULL
+      GROUP BY room_type;
+
+  `;
+
+    const { rows } = await pool.query(query, [id]);
+    return rows;
+  }
+
   // static async createListing(client, pgData) {
   //   const columns = Object.keys(pgData);
   //   const values = Object.values(pgData);
@@ -594,6 +627,7 @@ class PgRepo {
       "caption",
       "is_cover",
       "sort_order",
+      "media_type",
     ];
 
     const values = [];
@@ -607,6 +641,7 @@ class PgRepo {
         photo.caption,
         photo.is_cover,
         photo.sort_order,
+        photo.media_type,
       );
 
       return `(${columns.map((_, j) => `$${offset + j + 1}`).join(", ")})`;

@@ -307,7 +307,7 @@ CREATE TABLE rooms_photos (
     caption     VARCHAR(200),
     is_cover    BOOLEAN NOT NULL DEFAULT FALSE,
     sort_order  SMALLINT NOT NULL DEFAULT 0,
-
+    media_type  VARCHAR(10) NOT NULL DEFAULT 'image'
     uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

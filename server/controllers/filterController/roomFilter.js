@@ -2,7 +2,7 @@ const filterRepo = require("../../service/filterRoom/filterRoom");
 const catchAsync = require("../../utils/catchAsync");
 
 exports.filterListings = catchAsync(async (req, res) => {
-  const allowedFilters = ["listing_type", "maxPrice", "", "city"];
+  const allowedFilters = ["listing_type", "maxPrice", "minPrice", "city"];
 
   const filterData = {};
 
@@ -16,17 +16,26 @@ exports.filterListings = catchAsync(async (req, res) => {
     filterData[key] = req.query[key];
   }
 
-  if (filterData.maxPrice) {
-    const price = Number(filterData.maxPrice);
+  if (filterData.minPrice || filterData.maxPrice) {
+    const min = Number(filterData.minPrice);
+    const max = Number(filterData.maxPrice);
 
-    if (!Number.isInteger(price)) {
+    if (filterData.minPrice && !Number.isInteger(min)) {
       return res.status(400).json({
         success: false,
-        message: "maxPrice must be an integer",
+        message: "Min price must be an integer",
       });
     }
 
-    filterData.maxPrice = price;
+    if (filterData.maxPrice && !Number.isInteger(max)) {
+      return res.status(400).json({
+        success: false,
+        message: "Max price must be an integer",
+      });
+    }
+
+    if (filterData.minPrice) filterData.minPrice = min;
+    if (filterData.maxPrice) filterData.maxPrice = max;
   }
 
   const filterValues = await filterRepo.filterListings(filterData);

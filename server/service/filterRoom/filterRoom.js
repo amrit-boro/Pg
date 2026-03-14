@@ -2,19 +2,15 @@ const pool = require("../../config/db");
 
 class FilterRoom {
   static async filterListings(filters = {}) {
-    console.log(filters);
     const {
       minPrice,
       maxPrice,
-      city,
-      type,
-      max_occupants,
-      availableFrom,
       limit = 20,
       offset = 0,
-      sortBy = "created_at",
-      sortOrder = "DESC",
+      sortBy = "starting_price",
+      sortOrder = "ASC",
     } = filters;
+
     const baseQuery = `
     SELECT
       l.id,
@@ -37,9 +33,9 @@ class FilterRoom {
           JSON_AGG(
             JSON_BUILD_OBJECT(
               'url', ph.url,
-              'caption',ph.caption
+              'caption', ph.caption
             )
-          ),'[]'
+          ), '[]'
         )
         FROM listing_photos ph
         WHERE ph.listing_id = l.id
@@ -55,56 +51,113 @@ class FilterRoom {
     const values = [];
 
     /**
-     * Filter Configuration Map
-     * key → incoming filter key
-     * column → db column
-     * operator → SQL operator
-     * transform → optional sanitizer / transformer
+     * Filter Configuration
      */
     const filterMap = {
-      minPrice: {
+      price: {
+        type: "between",
         column: "l.starting_price",
-        operator: ">=",
+        keys: ["minPrice", "maxPrice"],
         transform: Number,
       },
-      maxPrice: {
-        column: "l.starting_price",
-        operator: "<=",
-        transform: Number,
-      },
+
       city: {
+        type: "eq",
         column: "loc.city",
-        operator: "=",
       },
+
       listing_type: {
+        type: "eq",
         column: "l.listing_type",
-        operator: "=",
       },
+
       max_occupants: {
+        type: "eq",
         column: "l.max_occupants",
-        operator: "=",
         transform: Number,
       },
+
       availableFrom: {
+        type: "gte",
         column: "l.available_from",
-        operator: ">=",
       },
     };
 
-    // Build dynamic filters
+    /**
+     * Dynamic Filter Builder
+     */
     Object.entries(filterMap).forEach(([key, config]) => {
-      if (filters[key] !== undefined && filters[key] !== null) {
-        const value = config.transform
-          ? config.transform(filters[key])
-          : filters[key];
-        values.push(value);
-        conditions.push(
-          `${config.column} ${config.operator} $${values.length}`,
-        );
+      switch (config.type) {
+        case "between": {
+          const [minKey, maxKey] = config.keys;
+          const min = filters[minKey];
+          const max = filters[maxKey];
+
+          if (min && max) {
+            values.push(config.transform ? config.transform(min) : min);
+            const minIndex = values.length;
+
+            values.push(config.transform ? config.transform(max) : max);
+            const maxIndex = values.length;
+
+            conditions.push(
+              `${config.column} BETWEEN $${minIndex} AND $${maxIndex}`,
+            );
+          } else if (min) {
+            values.push(config.transform ? config.transform(min) : min);
+            conditions.push(`${config.column} >= $${values.length}`);
+          } else if (max) {
+            values.push(config.transform ? config.transform(max) : max);
+            conditions.push(`${config.column} <= $${values.length}`);
+          }
+
+          break;
+        }
+
+        case "eq": {
+          if (filters[key] !== undefined && filters[key] !== null) {
+            const value = config.transform
+              ? config.transform(filters[key])
+              : filters[key];
+
+            values.push(value);
+            conditions.push(`${config.column} = $${values.length}`);
+          }
+
+          break;
+        }
+
+        case "gte": {
+          if (filters[key]) {
+            values.push(filters[key]);
+            conditions.push(`${config.column} >= $${values.length}`);
+          }
+
+          break;
+        }
+
+        case "in": {
+          if (filters[key]) {
+            const arr = Array.isArray(filters[key])
+              ? filters[key]
+              : filters[key].split(",");
+
+            const placeholders = arr.map((_, i) => `$${values.length + i + 1}`);
+
+            values.push(...arr);
+
+            conditions.push(`${config.column} IN (${placeholders.join(",")})`);
+          }
+
+          break;
+        }
       }
     });
 
-    // Prevent SQL injection in ORDER BY
+    /**
+     * Safe Sorting
+     */
+    // console.log("conditions; ", conditions);
     const allowedSortColumns = [
       "created_at",
       "starting_price",
@@ -121,11 +174,19 @@ class FilterRoom {
       ? sortOrder.toUpperCase()
       : "DESC";
 
+    /**
+     * Pagination
+     */
+
     values.push(Number(limit));
     const limitIndex = values.length;
 
     values.push(Number(offset));
     const offsetIndex = values.length;
+
+    /**
+     * Final Query
+     */
 
     const finalQuery = `
     ${baseQuery}
@@ -134,15 +195,19 @@ class FilterRoom {
     LIMIT $${limitIndex}
     OFFSET $${offsetIndex}
   `;
+
+    // console.log("SQL:", finalQuery);
+    // console.log("Values:", values);
+
     try {
       const { rows } = await pool.query(finalQuery, values);
+      console.log("rows: ", rows);
       return rows;
     } catch (error) {
       console.error("Filter query error:", error);
       throw new Error("Failed to filter listings");
     }
   }
-
   // static async filterListings(filters = {}) {
   //   console.log("filters: ", filters);
   //   const {

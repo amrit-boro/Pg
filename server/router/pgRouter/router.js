@@ -1,7 +1,7 @@
 const express = require("express");
 const pgController = require("../../controllers/pgController/controller");
 const photoController = require("../../controllers/photoController/deleteRoomphoto");
-const { upload } = require("../../utils/cloudinary");
+const { upload, uploadMedia } = require("../../utils/cloudinary");
 const router = express.Router();
 
 router.get("/getsome", pgController.getpgs);
@@ -27,12 +27,22 @@ router.post(
 );
 
 // Room related--------------------------------
+router.get("/gets", pgController.getTotal);
 router.post(
   "/createRoom",
-  upload.array("image", 10),
+  uploadMedia.fields([
+    { name: "images", maxCount: 10 },
+    { name: "video", maxCount: 1 },
+  ]),
   pgController.createPgRoom,
 );
-router.get("/getAllRooms/:id", pgController.getAllRoomsByPgId);
+
+// router.post(
+//   "/createRoom",
+//   upload.array("image", 10),
+//   pgController.createPgRoom,
+// );
+router.get("/getAllRooms", pgController.getAllRoomsByPgId);
 router.get("/getRoom/:id", pgController.getRoom);
 router.patch("/updateRoom/:id", pgController.updateRoom);
 router.delete("/deleteRoom/:id", pgController.deleteRoom);

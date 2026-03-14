@@ -129,3 +129,22 @@ exports.deleteListingPhoto = catchAsync(async (req, res, next) => {
     client.release();
   }
 });
+
+exports.uploadController = catchAsync(async (req, res, next) => {
+  try {
+    const images = req.files.images || [];
+    const video = req.files.video?.[0];
+
+    const uploadedImages = await Promise.all(
+      images.map((file) => streamUpload(file.buffer, "image")),
+    );
+    let uploadedVideo = null;
+    if (video) {
+      uploadedVideo = await streamUpload(video.buffer, "video");
+    }
+    res.json({
+      images: uploadedImages.map((i) => i.secure_url),
+      video: uploadedVideo?.secure_url,
+    });
+  } catch (er) {}
+});
