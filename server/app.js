@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const userRouter = require("./router/userRouter/router");
 const pgRouter = require("./router/pgRouter/router");
+const priceRouter = require("./router/priceRouter/router");
 const filterRouter = require("./router/filterRouter/pgFilterRouter");
 const AppError = require("./utils/appError");
 const globalError = require("./controllers/errorController");
@@ -22,11 +23,17 @@ app.use(
 app.use(express.json());
 app.use(express.static(`${__dirname}/public`));
 
+app.use((req, res, next) => {
+  console.log(req.headers);
+  next();
+});
+
 // users
 app.use("/api/v1/users", userRouter);
 
 // pg
 app.use("/api/v1/pg", pgRouter);
+app.use("/api/v1/pg/price", priceRouter);
 
 //filter-pg
 app.use("/api/v1/filterlistings", filterRouter);

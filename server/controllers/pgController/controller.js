@@ -65,8 +65,9 @@ exports.updateListings = catchAsync(async (req, res, next) => {
 // Rooms related==============================================
 
 exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
-  const { type, pgId } = req.query;
-  const allRooms = await pgRepo.getAllRoomsById(type, pgId);
+  const { type, pgId, page } = req.query;
+
+  const allRooms = await pgRepo.getAllRoomsById(type, pgId, page);
 
   if (!allRooms || allRooms.rooms.length === 0) {
     return res.status(200).json({

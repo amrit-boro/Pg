@@ -2,7 +2,13 @@ const filterRepo = require("../../service/filterRoom/filterRoom");
 const catchAsync = require("../../utils/catchAsync");
 
 exports.filterListings = catchAsync(async (req, res) => {
-  const allowedFilters = ["listing_type", "maxPrice", "minPrice", "city"];
+  const allowedFilters = [
+    "listing_type",
+    "maxPrice",
+    "minPrice",
+    "city",
+    "page",
+  ];
 
   const filterData = {};
 

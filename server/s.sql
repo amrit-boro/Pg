@@ -30,6 +30,9 @@ CREATE TYPE notification_type AS ENUM ('booking_request', 'booking_confirmed', '
 CREATE TYPE room_type         AS ENUM ('single','double','tripple','shared');
 CREATE TYPE room_status       AS ENUM ('available','fully_occupied','maintenance','inactive')
 
+
+
+
 -- ============================================================
 -- 1. USERS
 -- ============================================================
@@ -38,20 +41,15 @@ CREATE TABLE users (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
     email               VARCHAR(255)    NOT NULL UNIQUE,
     phone               VARCHAR(30)     UNIQUE,
-    password_hash       TEXT            NOT NULL,
+    password       TEXT            NOT NULL,
     role                user_role       NOT NULL DEFAULT 'guest',
     first_name          VARCHAR(100)    NOT NULL,
     last_name           VARCHAR(100)    NOT NULL,
-    date_of_birth       DATE,
-    gender              gender,         NOT NULL
     avatar_url          TEXT,
     bio                 TEXT,
     is_email_verified   BOOLEAN         NOT NULL DEFAULT FALSE,
     is_phone_verified   BOOLEAN         NOT NULL DEFAULT FALSE,
-    is_id_verified      BOOLEAN         NOT NULL DEFAULT FALSE,  -- govt ID check
     is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
-    preferred_language  CHAR(5)         DEFAULT 'en',            -- BCP-47
-    preferred_currency  CHAR(3)         DEFAULT 'USD',           -- ISO 4217
     last_login_at       TIMESTAMPTZ,
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
