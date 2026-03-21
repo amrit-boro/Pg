@@ -41,7 +41,11 @@ CREATE TABLE users (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
     email               VARCHAR(255)    NOT NULL UNIQUE,
     phone               VARCHAR(30)     UNIQUE,
+
     password       TEXT            NOT NULL,
+    passwordResetToken  VARCHAR(60)
+    passwordResetExpires TIMESTAMPTZ
+
     role                user_role       NOT NULL DEFAULT 'guest',
     first_name          VARCHAR(100)    NOT NULL,
     last_name           VARCHAR(100)    NOT NULL,
@@ -54,6 +58,7 @@ CREATE TABLE users (
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ                              -- soft delete
+
 );
 
 

@@ -8,12 +8,25 @@ const priceRouter = require("./router/priceRouter/router");
 const filterRouter = require("./router/filterRouter/pgFilterRouter");
 const AppError = require("./utils/appError");
 const globalError = require("./controllers/errorController");
+const ratelimit = require("express-rate-limit");
+const helmet = require("helmet");
 
 const app = express();
+
+app.use(helmet());
+
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
+const limiter = ratelimit({
+  max: 1,
+  window: 60 * 60 * 1000,
+  message: "Too many requests from this IP, Please try again in an hour",
+});
 //middlewares
+
+app.use("/api", limiter);
+
 app.use(
   cors({
     origin: "http://localhost:5173",

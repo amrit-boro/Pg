@@ -22,24 +22,21 @@ exports.getUser = async (req, res) => {
   }
 };
 
-exports.deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleteuser = await userRepo.deleteUserById(id);
+exports.deleteUser = catchAsync(async (req, res) => {
+  const { id } = req.user;
+  console.log("id:", id);
+  const deleteuser = await userRepo.deleteUserById(id);
 
-    if (!deleteuser) {
-      return res.status(404).json({
-        success: false,
-        message: "user not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "User deleted successfully",
-      data: deleteuser,
+  if (!deleteuser) {
+    return res.status(404).json({
+      success: false,
+      message: "user not found",
     });
-  } catch (error) {
-    throw new Error("Error:", error);
   }
-};
+
+  return res.status(200).json({
+    success: true,
+    message: "User deleted successfully",
+    data: deleteuser,
+  });
+});

@@ -4,6 +4,7 @@ const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const hashPassword = require("../utils/hash");
 const jwt = require("jsonwebtoken");
+const db = require("../config/db");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,6 +12,24 @@ const signToken = (id) => {
   });
 };
 
+const createSendToken = (user, statusCode, res) => {
+  const token = signToken(user.id);
+  const cookieOptons = {
+    expiresAt: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRES_IN),
+    httpOnly: true,
+  };
+  if (process.env.NODE_ENV === "production") cookieOptons.secure = true;
+
+  res.cookie("jwt", token, cookieOptons);
+
+  res.status(statusCode).json({
+    status: "success",
+    token: token,
+    data: {
+      user,
+    },
+  });
+};
 exports.signUp = catchAsync(async (req, res, next) => {
   const {
     email,
@@ -18,6 +37,7 @@ exports.signUp = catchAsync(async (req, res, next) => {
     password_hash: password,
     first_name,
     last_name,
+    role,
   } = req.body;
 
   const existing = await userRepo.findUserByEmail(email);
@@ -36,16 +56,19 @@ exports.signUp = catchAsync(async (req, res, next) => {
     password_hash,
     first_name,
     last_name,
+    role,
   });
 
   // send JWT
-  const token = signToken(newUser.id);
-  res.status(201).json({
-    success: true,
-    token: token,
-    message: "successful",
-    data: newUser,
-  });
+  // const token = signToken(newUser.id);
+  // res.status(201).json({
+  //   success: true,
+  //   token: token,
+  //   message: "successful",
+  //   data: newUser,
+  // });
+
+  createSendToken(newUser, 201, res);
 });
 
 exports.logIn = catchAsync(async (req, res, next) => {
@@ -67,12 +90,13 @@ exports.logIn = catchAsync(async (req, res, next) => {
   }
 
   // If everything ok, send token to client
-  console.log("user: ", user);
-  const token = signToken(user.id);
-  res.status(200).json({
-    status: "success",
-    token: token,
-  });
+  // console.log("user: ", user);
+  // const token = signToken(user.id);
+  // res.status(200).json({
+  //   status: "success",
+  //   token: token,
+  // });
+  createSendToken(user, 200, res);
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -107,4 +131,38 @@ exports.protect = catchAsync(async (req, res, next) => {
   //
   req.user = currentUser;
   next();
+});
+
+exports.restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new AppError("You do not have permission to perform this action", 403),
+      );
+    }
+    next();
+  };
+};
+
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  // 1) get user based on POSTED email
+  const { email } = req.body;
+  const user = await userRepo.findUserByEmail(email);
+  if (!user) {
+    return next(new AppError("There is no user with email address", 404));
+  }
+
+  // Generate random token
+  const { rawToken, hashedToken } = hashPassword.generateResetToken();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  console.log(rawToken, hashedToken, expiresAt);
+
+  // await db.query(
+  //   `UPDATE users
+  //    SET passwordResetToken = $1,
+  //        passwordResetExpires = $2
+  //    WHERE id = $3`,
+  //   [hashedToken, expiresAt, user.rows[0].id],
+  // );
 });
