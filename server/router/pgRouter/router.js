@@ -5,6 +5,10 @@ const { upload, uploadMedia } = require("../../utils/cloudinary");
 const router = express.Router();
 
 router.get("/getsome", pgController.getpgs);
+// router.get("/getsome", (req, res) => {
+//   console.log("hello");
+// });
+
 router.get("/getAllPgs", pgController.getAllpg);
 router.patch("/updateListing/:id", pgController.updateListings);
 

@@ -1,60 +1,97 @@
+// ==================== IMPORTS ====================
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const hpp = require("hpp");
+const { xss } = require("express-xss-sanitizer");
 
 const userRouter = require("./router/userRouter/router");
 const pgRouter = require("./router/pgRouter/router");
 const priceRouter = require("./router/priceRouter/router");
 const filterRouter = require("./router/filterRouter/pgFilterRouter");
+
 const AppError = require("./utils/appError");
 const globalError = require("./controllers/errorController");
-const ratelimit = require("express-rate-limit");
-const helmet = require("helmet");
 
+// ==================== APP INIT ====================
 const app = express();
 
-app.use(helmet());
+// ==================== SECURITY MIDDLEWARES ====================
 
+// Secure HTTP headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
+// Rate limiting (basic protection)
+const limiter = rateLimit({
+  max: 100,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  message: "Too many requests from this IP, Please try again in an hour",
+});
+app.use("/api", limiter);
+
+// ==================== GENERAL MIDDLEWARES ====================
+
+// Enable CORS
+app.use(
+  cors({
+    origin: "http://localhost:5173", // change in production
+    credentials: true,
+  }),
+);
+
+// Logging (dev only)
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
-const limiter = ratelimit({
-  max: 1,
-  window: 60 * 60 * 1000,
-  message: "Too many requests from this IP, Please try again in an hour",
-});
-//middlewares
 
-app.use("/api", limiter);
-
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true, // only if using cookies/auth
-  }),
-);
+// Body parser (limit payload size)
 app.use(express.json());
+
+// Prevent XSS attacks
+app.use(xss());
+
+// Prevent HTTP parameter pollution
+app.use(hpp());
+// Compress responses
+
+// Serve static files
 app.use(express.static(`${__dirname}/public`));
 
-app.use((req, res, next) => {
-  console.log(req.headers);
-  next();
-});
+// Debug middleware (dev only)
+if (process.env.NODE_ENV === "development") {
+  app.use((req, res, next) => {
+    console.log(req.headers);
+    next();
+  });
+}
 
-// users
+// ==================== ROUTES ====================
+
+// Users
 app.use("/api/v1/users", userRouter);
 
-// pg
+// PG
 app.use("/api/v1/pg", pgRouter);
 app.use("/api/v1/pg/price", priceRouter);
 
-//filter-pg
+// Filters
 app.use("/api/v1/filterlistings", filterRouter);
 
-app.use((req, res, next) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server`, 400));
+// ==================== ERROR HANDLING ====================
+
+// Handle unknown routes
+app.all("", (req, res, next) => {
+  next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
 
+// Global error handler
 app.use(globalError);
 
+// ==================== EXPORT ====================
 module.exports = app;
