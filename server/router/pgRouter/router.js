@@ -3,7 +3,6 @@ const router = express.Router();
 const listingController = require("../../controllers/pgController/controller");
 const photoController = require("../../controllers/photoController/deleteRoomphoto");
 const authController = require("../../controllers/authController");
-
 const { upload, uploadMedia } = require("../../utils/cloudinary");
 
 // Listings related--------------------------
@@ -11,21 +10,21 @@ const { upload, uploadMedia } = require("../../utils/cloudinary");
 // router.post("/createRoom", upload.single("image"), pgController.createRoom);
 
 router.get("/", listingController.getListings); // first 4 listings
-router.get("/allListings", listingController.getAllListings);
+// router.get("/allListings", listingController.getAllListings);
+router.get("/filters", listingController.filterListings);
 router.get("/total/:id", listingController.getTotal);
-
-// Saved listings
-router.use(authController.protect);
-router
-  .route("/saved-listings")
-  .get(listingController.getSavedListings)
-  .post(listingController.saveListing);
 
 router
   .route("/:listingId")
   .get(listingController.getListing)
-  .patch(listingController.updateListings)
+  .patch(authController.protect, listingController.updateListings)
   .delete(listingController.deleteListing);
+
+// Saved listings
+router
+  .route("/saved-listings")
+  .get(listingController.getSavedListings)
+  .post(listingController.saveListing);
 
 // router.get("/getListingById/:id", listingController.getpg);
 // router.patch("/updateListing/:id", listingController.updateListings);
@@ -52,7 +51,7 @@ router.post(
 
 router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
 router
-  .route("/:roomId")
+  .route("/room/:roomId")
   .get(listingController.getRoom)
   .patch(listingController.updateRoom)
   .delete(listingController.deleteRoom);

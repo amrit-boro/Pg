@@ -80,7 +80,7 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/listings", listingRouter);
 
 // Filters
-app.use("/api/v1/filterlistings", filterRouter);
+// app.use("/api/v1/filterlistings", filterRouter);
 
 // Review
 app.use("/api/v1/reviews", reviewRouter);

@@ -5,6 +5,64 @@ const streamUpload = require("../../utils/streamUpload");
 const catchAsync = require("../../utils/catchAsync");
 const AppError = require("../../utils/appError");
 const PgRepo = require("../../service/pg/pgRepo");
+const filterRepo = require("../../service/filterRoom/filterRoom");
+
+// filter listings==========================
+
+exports.filterListings = catchAsync(async (req, res, next) => {
+  console.log("query: ", req.query);
+
+  const allowedFilters = ["listing_type", "maxPrice", "minPrice", "page"];
+
+  const filterData = {};
+
+  for (const key of Object.keys(req.query)) {
+    if (!allowedFilters.includes(key)) {
+      return next(new AppError("Invalid query parameter", 400));
+    }
+    filterData[key] = req.query[key];
+  }
+
+  if (filterData.minPrice || filterData.maxPrice) {
+    const min = Number(filterData.minPrice);
+    const max = Number(filterData.maxPrice);
+
+    if (filterData.minPrice && !Number.isInteger(min)) {
+      return res.status(400).json({
+        success: false,
+        message: "Min price must be an integer",
+      });
+    }
+
+    if (filterData.maxPrice && !Number.isInteger(max)) {
+      return res.status(400).json({
+        success: false,
+        message: "Max price must be an integer",
+      });
+    }
+
+    if (filterData.minPrice) filterData.minPrice = min;
+    if (filterData.maxPrice) filterData.maxPrice = max;
+  }
+
+  console.log("filterdata: ", filterData);
+  const filterValues = await filterRepo.filterListings(filterData);
+
+  if (!filterValues || filterValues.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "Ooops room not found ):",
+      total: 0,
+      data: [],
+    });
+  }
+
+  res.status(200).json({
+    total: filterValues.length,
+    success: true,
+    data: filterValues,
+  });
+});
 
 exports.getListings = catchAsync(async (req, res, next) => {
   const listings = await pgRepo.findListings();
@@ -109,7 +167,8 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
 // GET ROOM BY ID ============================================
 
 exports.getRoom = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
+  console.log("hello from the ");
+  const { roomId: id } = req.params;
   const result = await pgRepo.getRoomById(id);
 
   // 1. Check if the result is empty or null
@@ -344,6 +403,7 @@ exports.saveListing = catchAsync(async (req, res, next) => {
 });
 
 exports.getSavedListings = catchAsync(async (req, res, next) => {
+  console.log("hello");
   const userId = req.user.id;
   const result = await pgRepo.getSaveListing(userId);
   res.status(200).json({
