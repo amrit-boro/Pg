@@ -14,6 +14,7 @@ router.get("/getAllUser", authController.protect, userController.getAllUsers);
 router.post("/signUp", upload.single("image"), authController.signUp);
 router.get("/login", authController.logIn);
 router.post("/forgotPassword", authController.forgotPassword);
+// router.post("/resetPassword/:token", authController.resetPassword);
 
 router
   .route("/")

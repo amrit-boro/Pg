@@ -1,28 +1,40 @@
 const express = require("express");
-const pgController = require("../../controllers/pgController/controller");
-const photoController = require("../../controllers/photoController/deleteRoomphoto");
-const { upload, uploadMedia } = require("../../utils/cloudinary");
 const router = express.Router();
+const listingController = require("../../controllers/pgController/controller");
+const photoController = require("../../controllers/photoController/deleteRoomphoto");
+const authController = require("../../controllers/authController");
 
-router.get("/getsome", pgController.getpgs);
-// router.get("/getsome", (req, res) => {
-//   console.log("hello");
-// });
+const { upload, uploadMedia } = require("../../utils/cloudinary");
 
-router.get("/getAllPgs", pgController.getAllpg);
-router.patch("/updateListing/:id", pgController.updateListings);
-
+// Listings related--------------------------
 //posts-----------
 // router.post("/createRoom", upload.single("image"), pgController.createRoom);
 
-// Listings related--------------------------
-router.delete("/deleteListing/:id", pgController.deleteListing);
-router.get("/getListingById/:id", pgController.getpg);
+router.get("/", listingController.getListings); // first 4 listings
+router.get("/allListings", listingController.getAllListings);
+router.get("/total/:id", listingController.getTotal);
+
+// Saved listings
+router.use(authController.protect);
+router
+  .route("/saved-listings")
+  .get(listingController.getSavedListings)
+  .post(listingController.saveListing);
+
+router
+  .route("/:listingId")
+  .get(listingController.getListing)
+  .patch(listingController.updateListings)
+  .delete(listingController.deleteListing);
+
+// router.get("/getListingById/:id", listingController.getpg);
+// router.patch("/updateListing/:id", listingController.updateListings);
+// router.delete("/deleteListing/:id", listingController.deleteListing);
 router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
 router.post(
   "/createPgListing",
   upload.array("image", 10),
-  pgController.createPgListing,
+  listingController.createPgListing,
 );
 router.post(
   "/uploadListingsPhotos/:id",
@@ -31,27 +43,32 @@ router.post(
 );
 
 // Room related--------------------------------
-router.get("/gets", pgController.getTotal);
+
+// router.post(
+//   "/createRoom",
+//   upload.array("image", 10),
+//   listingController.createPgRoom,
+// );
+
+router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
+router
+  .route("/:roomId")
+  .get(listingController.getRoom)
+  .patch(listingController.updateRoom)
+  .delete(listingController.deleteRoom);
+
 router.post(
   "/createRoom",
   uploadMedia.fields([
     { name: "images", maxCount: 10 },
     { name: "video", maxCount: 1 },
   ]),
-  pgController.createPgRoom,
+  listingController.createPgRoom,
 );
-
-// router.post(
-//   "/createRoom",
-//   upload.array("image", 10),
-//   pgController.createPgRoom,
-// );
-router.get("/getAllRooms", pgController.getAllRoomsByPgId);
-router.get("/getRoom/:id", pgController.getRoom);
-router.patch("/updateRoom/:id", pgController.updateRoom);
-router.delete("/deleteRoom/:id", pgController.deleteRoom);
 router.delete("/deleteRoomPhoto/:id", photoController.deletePhoto);
 
 // Review-------------------------------------
-router.post("/createReview", pgController.reviewRoom);
+router.post("/createReview", listingController.reviewRoom);
+
+// router.get("/saved-listings", listingController.getSavedListings);
 module.exports = router;

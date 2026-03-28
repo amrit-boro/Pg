@@ -6,42 +6,42 @@ const catchAsync = require("../../utils/catchAsync");
 const AppError = require("../../utils/appError");
 const PgRepo = require("../../service/pg/pgRepo");
 
-exports.getpgs = catchAsync(async (req, res, next) => {
-  console.log("hello");
-  const pgresult = await pgRepo.findsomePg();
-  if (!pgresult) {
+exports.getListings = catchAsync(async (req, res, next) => {
+  const listings = await pgRepo.findListings();
+  if (listings.length === 0) {
     return next(new AppError("No listing found", 400));
   }
 
   res.status(200).json({
+    total: listings.length,
     success: true,
-    data: pgresult,
+    data: listings,
   });
 });
-exports.getpg = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
-  const pgresult = await pgRepo.getListingById(id);
-  if (!pgresult) {
+
+exports.getListing = catchAsync(async (req, res, next) => {
+  const { listingId: id } = req.params;
+  const getListing = await pgRepo.getListingById(id);
+  if (getListing.length === 0) {
     return next(new AppError("No listing found", 400));
   }
-
   res.status(200).json({
     success: true,
-    data: pgresult,
+    data: getListing,
   });
 });
 
-exports.getAllpg = catchAsync(async (req, res, next) => {
+exports.getAllListings = catchAsync(async (req, res, next) => {
   const filterData = req.query;
 
-  const allpg = await pgRepo.findAllPg(filterData);
-  if (!allpg) {
+  const allListings = await pgRepo.findAllPg(filterData);
+  if (allListings.length === 0) {
     return next(new AppError(`No listing found!!`));
   }
   res.status(200).json({
-    total: allpg.length,
+    total: allListings.length,
     success: true,
-    data: allpg,
+    data: allListings,
   });
 });
 
@@ -65,11 +65,13 @@ exports.updateListings = catchAsync(async (req, res, next) => {
 // Rooms related==============================================
 
 exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
-  const { type, pgId, page } = req.query;
+  const filters = {
+    listingId: req.params.listingId,
+    ...req.query,
+  };
 
-  const allRooms = await pgRepo.getAllRoomsById(type, pgId, page);
-
-  if (!allRooms || allRooms.rooms.length === 0) {
+  const rooms = await pgRepo.getAllRoomsById(filters);
+  if (!rooms || rooms.rooms.length === 0) {
     return res.status(200).json({
       success: true,
       message: "Oops room not found ):",
@@ -78,9 +80,9 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
     });
   }
   res.status(200).json({
-    total: allRooms.rooms.length,
+    total: rooms.rooms.length,
     success: true,
-    data: allRooms,
+    data: rooms,
   });
 });
 
@@ -93,11 +95,12 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
   if (!existingRoom) {
     return next(new AppError(`Room not found with Id: ${id}!`, 404));
   }
+  console.log("updateFields: ", updateFields, "roomID: ", id);
   const updatedRoom = await pgRepo.updateRoomById(updateFields, id);
   if (!updatedRoom) {
     return next(new AppError("Room not found or deleted!", 404));
   }
-  return res.status(201).json({
+  res.status(201).json({
     success: true,
     data: updatedRoom,
   });
@@ -314,14 +317,38 @@ exports.reviewRoom = catchAsync(async (req, res, next) => {
 });
 
 exports.getTotal = catchAsync(async (req, res, next) => {
-  const { pgId } = req.query;
-  const pgresult = await pgRepo.getListingById(pgId);
-  if (!pgresult) {
+  const { id } = req.params;
+  const pgresult = await pgRepo.getListingById(id);
+  if (pgresult.length === 0) {
     return next(new AppError("No listing found", 400));
   }
-  const result = await pgRepo.getTotal(pgId);
+  const result = await pgRepo.getTotaltype(id);
   res.status(200).json({
     success: true,
     result,
+  });
+});
+
+// ==========================================================================
+// SAVED LISTINGS
+
+exports.saveListing = catchAsync(async (req, res, next) => {
+  const { id } = req.user;
+  const { listing_id } = req.body;
+
+  await pgRepo.saveListing(id, listing_id);
+  res.status(201).json({
+    success: true,
+    message: "Listing saved",
+  });
+});
+
+exports.getSavedListings = catchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  const result = await pgRepo.getSaveListing(userId);
+  res.status(200).json({
+    success: true,
+    total: result.length,
+    data: result,
   });
 });

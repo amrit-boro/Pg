@@ -28,22 +28,19 @@ class FilterRoom {
       loc.city,
       loc.state,
 
-      (
-        SELECT COALESCE(
-          JSON_AGG(
-            JSON_BUILD_OBJECT(
-              'url', ph.url,
-              'caption', ph.caption
-            )
-          ), '[]'
-        )
-        FROM listing_photos ph
-        WHERE ph.listing_id = l.id
+      COALESCE(
+        JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'url',ph.url,
+            'caption',ph.caption
+          )
+        ),'[]'
       ) AS photos
 
     FROM listings l
     JOIN users u ON l.host_id = u.id
     JOIN locations loc ON l.location_id = loc.id
+    LEFT JOIN listing_photos ph ON ph.listing_id = l.id
   `;
 
     const conditions = [`l.status = 'active'`, `l.deleted_at IS NULL`];
@@ -178,13 +175,14 @@ class FilterRoom {
     const finalQuery = `
     ${baseQuery}
     WHERE ${conditions.join(" AND ")}
+    GROUP BY l.id, u.id, loc.id
     ORDER BY l.${safeSortBy} ${safeSortOrder}
     LIMIT $${limitIndex}
     OFFSET $${offsetIndex}
   `;
 
     console.log("SQL:", finalQuery);
-    console.log("Values:", values);
+    // console.log("Values:", values);
 
     const { rows } = await pool.query(finalQuery, values);
     return rows;

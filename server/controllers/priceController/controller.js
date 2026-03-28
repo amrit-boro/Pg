@@ -14,3 +14,14 @@ exports.getPrice = catchAsync(async (req, res, next) => {
 
   const price = await priceRepo.getRoomPrice(id);
 });
+
+exports.getRoomPrice = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  console.log("roomId : ", id);
+  const room = await priceRepo.findPriceByRoomId(id);
+
+  res.status(200).json({
+    status: "success",
+    data: room,
+  });
+});

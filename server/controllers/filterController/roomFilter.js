@@ -44,6 +44,7 @@ exports.filterListings = catchAsync(async (req, res) => {
     if (filterData.maxPrice) filterData.maxPrice = max;
   }
 
+  console.log("filterdata: ", filterData);
   const filterValues = await filterRepo.filterListings(filterData);
 
   if (!filterValues || filterValues.length === 0) {

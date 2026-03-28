@@ -5,6 +5,7 @@ const catchAsync = require("../utils/catchAsync");
 const hashPassword = require("../utils/hash");
 const jwt = require("jsonwebtoken");
 const db = require("../config/db");
+const sendEmail = require("../utils/email");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -30,6 +31,7 @@ const createSendToken = (user, statusCode, res) => {
     },
   });
 };
+
 exports.signUp = catchAsync(async (req, res, next) => {
   const {
     email,
@@ -40,12 +42,12 @@ exports.signUp = catchAsync(async (req, res, next) => {
     role,
   } = req.body;
 
-  const existing = await userRepo.findUserByEmail(email);
-
   // Checking existing user
+  const existing = await userRepo.findUserByEmail(email);
   if (existing) {
     return next(new AppError("Email already exists!"));
   }
+
   // hash password
   const password_hash = await hashPassword.hashPassword(password);
 
@@ -59,22 +61,12 @@ exports.signUp = catchAsync(async (req, res, next) => {
     role,
   });
 
-  // send JWT
-  // const token = signToken(newUser.id);
-  // res.status(201).json({
-  //   success: true,
-  //   token: token,
-  //   message: "successful",
-  //   data: newUser,
-  // });
-
   createSendToken(newUser, 201, res);
 });
 
 exports.logIn = catchAsync(async (req, res, next) => {
   const { email, password_hash: password } = req.body;
 
-  console.log(email, password);
   // 1) Check if email and password exists
   if (!email || !password) {
     return next(new AppError("Please provide email or password", 400));
@@ -89,13 +81,6 @@ exports.logIn = catchAsync(async (req, res, next) => {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // If everything ok, send token to client
-  // console.log("user: ", user);
-  // const token = signToken(user.id);
-  // res.status(200).json({
-  //   status: "success",
-  //   token: token,
-  // });
   createSendToken(user, 200, res);
 });
 
@@ -152,17 +137,24 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
     return next(new AppError("There is no user with email address", 404));
   }
 
+  console.log(user);
+
   // Generate random token
   const { rawToken, hashedToken } = hashPassword.generateResetToken();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  console.log(rawToken, hashedToken, expiresAt);
+  console.log(
+    "rowToken: ",
+    rawToken,
+    "hashed token: ",
+    hashedToken,
+    "expires At: ",
+    expiresAt,
+  );
 
-  // await db.query(
-  //   `UPDATE users
-  //    SET passwordResetToken = $1,
-  //        passwordResetExpires = $2
-  //    WHERE id = $3`,
-  //   [hashedToken, expiresAt, user.rows[0].id],
-  // );
+  const updatedUserpassword = await userRepo.updatedUserpassword(
+    hashedToken,
+    expiresAt,
+    user.id,
+  );
 });

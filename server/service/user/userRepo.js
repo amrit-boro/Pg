@@ -35,6 +35,19 @@ class UserRepo {
     const { rows } = await pool.query(query, [id]);
     return rows[0]; // undefind if not found!!
   }
+
+  static async updatedUserpassword(hashedToken, expiresAt, userid) {
+    const query = `
+      UPDATE users
+      SET passwordResetToken = $1
+        passwordResetExpires = $2
+      WHERE id = $3
+    `;
+    const values = [hashedToken, expiresAt, userid];
+
+    const { rows } = await pool.query(query, values);
+    return rows[0];
+  }
 }
 
 module.exports = UserRepo;

@@ -8,9 +8,10 @@ const hpp = require("hpp");
 const { xss } = require("express-xss-sanitizer");
 
 const userRouter = require("./router/userRouter/router");
-const pgRouter = require("./router/pgRouter/router");
+const listingRouter = require("./router/pgRouter/router");
 const priceRouter = require("./router/priceRouter/router");
 const filterRouter = require("./router/filterRouter/pgFilterRouter");
+const reviewRouter = require("./router/reviewRouter/router");
 
 const AppError = require("./utils/appError");
 const globalError = require("./controllers/errorController");
@@ -66,7 +67,6 @@ app.use(express.static(`${__dirname}/public`));
 // Debug middleware (dev only)
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
-    console.log(req.headers);
     next();
   });
 }
@@ -76,17 +76,21 @@ if (process.env.NODE_ENV === "development") {
 // Users
 app.use("/api/v1/users", userRouter);
 
-// PG
-app.use("/api/v1/pg", pgRouter);
-app.use("/api/v1/pg/price", priceRouter);
+// Listings
+app.use("/api/v1/listings", listingRouter);
 
 // Filters
 app.use("/api/v1/filterlistings", filterRouter);
 
+// Review
+app.use("/api/v1/reviews", reviewRouter);
+// PRICE
+app.use("/api/v1/price", priceRouter);
+
 // ==================== ERROR HANDLING ====================
 
 // Handle unknown routes
-app.all("", (req, res, next) => {
+app.all("/", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
 
