@@ -33,7 +33,7 @@ const uploadMedia = multer({
     ) {
       cb(null, true);
     } else {
-      cb(new Error("Only images or video allowed"));
+      cb(new Error("Only images or video allowed!"));
     }
   },
 });

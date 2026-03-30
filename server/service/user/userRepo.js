@@ -14,7 +14,7 @@ class UserRepo {
   }
 
   static async findUserById(id) {
-    const query = `SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL`;
+    const query = `SELECT u.id, u.email, u.role FROM users u WHERE u.id = $1 AND deleted_at IS NULL`;
     const { rows } = await pool.query(query, [id]);
     return rows[0];
   }

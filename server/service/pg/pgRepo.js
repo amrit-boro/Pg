@@ -332,43 +332,32 @@ class PgRepo {
         r.avg_rating,
         r.review_count,
         r.view_count,
-
-        (
-          SELECT COALESCE(
-            JSON_AGG(
-              JSON_BUILD_OBJECT(
-                'photo_id',rp.id,
-                'room_id',rp.room_id,
-                'url',rp.url,
-                'caption',rp.caption,
-                'is_cover',rp.is_cover
-              )
-            ),'[]'
-          )
-          FROM rooms_photos rp
-          WHERE rp.room_id = r.id
-            AND rp.media_type = 'image'
-        ) AS images,
-        
-        (
-          SELECT COALESCE(
-            JSON_AGG(
-              JSON_BUILD_OBJECT(
-                'id',rp.id,
-                'url',rp.url,
-                'caption',rp.caption
-              )
-            ), '[]'
-          )
-          FROM rooms_photos as rp
-          WHERE rp.room_id = r.id
-            AND rp.media_type = 'video'
-        ) AS video
-
+        COALESCE(media.images, '[]') AS images,
+        COALESCE(media.videos, '[]') AS video
       FROM rooms r
+      LEFT JOIN LATERAL (
+        SELECT 
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'photo_id', rp.id,
+                    'room_id', rp.room_id,
+                    'url', rp.url,
+                    'caption', rp.caption,
+                    'is_cover', rp.is_cover
+                )
+            ) FILTER (WHERE rp.media_type = 'image') AS images,
+            JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'id', rp.id,
+                    'url', rp.url,
+                    'caption', rp.caption
+                )
+            ) FILTER (WHERE rp.media_type = 'video') AS videos
+        FROM rooms_photos rp
+        WHERE rp.room_id = r.id
+      ) media ON true
       WHERE r.id = $1
         AND r.deleted_at IS NULL;
-
     `;
 
     const { rows } = await pool.query(query, [id]);
@@ -470,8 +459,8 @@ class PgRepo {
       AND l.deleted_at IS NULL;
   `;
 
-    console.log("quey: ", query);
-    console.log("vlues; ", values);
+    // console.log("quey: ", query);
+    // console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
     return rows[0] || null;
   }
@@ -843,7 +832,7 @@ class PgRepo {
 
   static async getSaveListing(userId) {
     const page = 1;
-    const limit = 10;
+    const limit = 6;
     const offset = (page - 1) * limit;
 
     const query = `
@@ -851,18 +840,27 @@ class PgRepo {
         l.id,
         l.title,
         l.starting_price,
+        l.description,
+        p.url ,
         s.saved_at
+
       FROM saved_listings s
-      JOIN listings l ON l.id = s.listing_id
+      JOIN listings l 
+        ON l.id = s.listing_id
+
+      LEFT JOIN LATERAL(
+        SELECT 
+          url
+        FROM listing_photos p
+        WHERE p.listing_id = l.id
+        LIMIT 1
+      ) p ON true
       WHERE s.user_id = $1
       ORDER BY s.saved_at DESC
       LIMIT $2 OFFSET $3
     `;
 
-    console.log("finale queyr: ", query);
-
     const { rows } = await pool.query(query, [userId, limit, offset]);
-    console.log("rows: ", rows);
     return rows;
   }
 

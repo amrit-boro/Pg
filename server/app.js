@@ -10,7 +10,6 @@ const { xss } = require("express-xss-sanitizer");
 const userRouter = require("./router/userRouter/router");
 const listingRouter = require("./router/pgRouter/router");
 const priceRouter = require("./router/priceRouter/router");
-const filterRouter = require("./router/filterRouter/pgFilterRouter");
 const reviewRouter = require("./router/reviewRouter/router");
 
 const AppError = require("./utils/appError");

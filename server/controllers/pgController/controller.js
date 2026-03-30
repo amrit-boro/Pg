@@ -10,8 +10,6 @@ const filterRepo = require("../../service/filterRoom/filterRoom");
 // filter listings==========================
 
 exports.filterListings = catchAsync(async (req, res, next) => {
-  console.log("query: ", req.query);
-
   const allowedFilters = ["listing_type", "maxPrice", "minPrice", "page"];
 
   const filterData = {};
@@ -45,7 +43,6 @@ exports.filterListings = catchAsync(async (req, res, next) => {
     if (filterData.maxPrice) filterData.maxPrice = max;
   }
 
-  console.log("filterdata: ", filterData);
   const filterValues = await filterRepo.filterListings(filterData);
 
   if (!filterValues || filterValues.length === 0) {
@@ -244,40 +241,70 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
 });
 
 exports.createPgRoom = catchAsync(async (req, res, next) => {
-  const client = await pool.connect();
+  // Define variables at the top, but DO NOT check out the DB client yet
+  let client;
   let uploadResults = [];
   let uploadedVideo = null;
   const images = req.files.images || [];
   const video = req.files.video?.[0];
 
+  console.log("file: ", req.files.images);
+
+  if (!images || images.length < 3) {
+    return next(new AppError("You must upload atleast 3 photos!", 400));
+  }
+
+  if (!video) {
+    return next(new AppError("You must upload a video!", 400));
+  }
+
+  const photolimit = 5 * 1024 * 1024; // 5MB lilmit
+
+  for (const img of images) {
+    // check type
+    if (!img.mimetype.startsWith("image/")) {
+      return next(
+        new AppError(`File '${img.originalname}' is not a valid image! `, 400),
+      );
+    }
+
+    // check size
+    if (img.size > photolimit) {
+      return next(
+        new AppError(
+          `Photo '${img.originalname}' is too large! Please keep individual photos under 5MB.`,
+          400,
+        ),
+      );
+    }
+  }
+
   try {
-    if (!images || images.length < 3) {
-      return res.status(400).json({
-        success: false,
-        message: "You must upload at least 3 photos",
-      });
-    }
+    // 1. Validate inputs early (fast fail)
 
-    if (!video) {
-      return res.status(400).json({
-        success: false,
-        message: "You must upload a video!",
-      });
-    }
-
-    // upload image first (without transaction)
-    uploadResults = await Promise.all(
-      images.map((file) => streamUpload(file.buffer, "image")),
+    // 2. Upload ALL media in parallel (Images AND Video together)
+    // This dramatically reduces the total wait time.
+    const imageUploadPromises = images.map((file) =>
+      streamUpload(file.buffer, "image"),
     );
+    const videoUploadPromise = streamUpload(video.buffer, "video");
 
-    // upload video (without transaction)
-    uploadedVideo = await streamUpload(video.buffer, "video");
+    const [resolvedImages, resolvedVideo] = await Promise.all([
+      Promise.all(imageUploadPromises),
+      videoUploadPromise,
+    ]);
 
+    // Assign to our outer variables for the catch block to access if DB fails
+    uploadResults = resolvedImages;
+    uploadedVideo = resolvedVideo;
+
+    // 3. NOW check out the DB connection (Network IO is done)
+    client = await pool.connect();
     await client.query("BEGIN");
 
+    // 4. Database Operations
     const newRoom = await pgRepo.createRoom(client, { ...req.body });
 
-    // 2️⃣ Upload multiple images in parallel
     const photos = uploadResults.map((result, i) => ({
       room_id: newRoom.id,
       url: result.secure_url,
@@ -309,25 +336,40 @@ exports.createPgRoom = catchAsync(async (req, res, next) => {
       photos: savedMedia,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
+    // 5. Cleanup Database
+    if (client) {
+      await client.query("ROLLBACK");
+    }
+
+    // 6. Cleanup Cloudinary (Fixed syntax errors)
+    const cleanupPromises = [];
+
     if (uploadResults && uploadResults.length > 0) {
-      await Promise.all(
-        uploadResults.map((r) => {
-          cloudinary.uploader.destroy(r.public_id);
+      // Removed curly braces so the promise is implicitly returned
+      const imageCleanup = uploadResults.map((r) =>
+        cloudinary.uploader.destroy(r.public_id),
+      );
+      cleanupPromises.push(...imageCleanup);
+    }
+
+    if (uploadedVideo) {
+      // Fixed argument syntax for Cloudinary video deletion
+      cleanupPromises.push(
+        cloudinary.uploader.destroy(uploadedVideo.public_id, {
+          resource_type: "video",
         }),
       );
     }
 
-    if (uploadedVideo) {
-      (await cloudinary.uploader.destroy(uploadedVideo.public_id),
-        {
-          resource_type: "video",
-        });
-    }
+    // Wait for all cleanup tasks to finish
+    await Promise.allSettled(cleanupPromises); // Promise.allSettled is safer here so one failed deletion doesn't stop the rest
 
-    next(error); // Forward to Global error
+    next(error);
   } finally {
-    client.release();
+    // 7. Ensure connection is released ONLY if it was actually acquired
+    if (client) {
+      client.release();
+    }
   }
 });
 
@@ -403,7 +445,6 @@ exports.saveListing = catchAsync(async (req, res, next) => {
 });
 
 exports.getSavedListings = catchAsync(async (req, res, next) => {
-  console.log("hello");
   const userId = req.user.id;
   const result = await pgRepo.getSaveListing(userId);
   res.status(200).json({

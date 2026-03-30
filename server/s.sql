@@ -325,6 +325,8 @@ CREATE TABLE saved_listings (
     PRIMARY KEY (user_id, listing_id)
 );
 
+CREATE INDEX idx_saved_user ON saved_listings(user_id);
+CREATE INDEX idx_photos_listing ON listing_photos(listing_id);
 
 -- ============================================================
 -- 9. BOOKING REQUESTS

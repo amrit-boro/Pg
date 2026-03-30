@@ -1,4 +1,5 @@
 const PgRepo = require("../../service/pg/pgRepo");
+const BookingRepo = require("../../service/Booking/booking");
 const AppError = require("../../utils/appError");
 const catchAsync = require("../../utils/catchAsync");
 
@@ -14,12 +15,17 @@ exports.getAllReview = catchAsync(async (req, res, next) => {
 });
 
 exports.createReview = catchAsync(async (req, res, next) => {
-  const newReview = await PgRepo.createReview(req.body);
+  const userId = req.user.id;
+  const bookedGuest = await BookingRepo.findBookingId(userId);
+  if (!bookedGuest || bookedGuest.length) {
+    return next(new AppError("Sorry you can't review!", 200));
+  }
+  // const newReview = await PgRepo.createReview(req.body);
 
-  res.status(201).json({
-    status: "success",
-    data: newReview,
-  });
+  // res.status(201).json({
+  //   status: "success",
+  //   data: newReview,
+  // });
 });
 
 exports.getAllReviewById = catchAsync(async (req, res, next) => {

@@ -9,10 +9,15 @@ const { upload, uploadMedia } = require("../../utils/cloudinary");
 //posts-----------
 // router.post("/createRoom", upload.single("image"), pgController.createRoom);
 
-router.get("/", listingController.getListings); // first 4 listings
+router.get("/top-4", listingController.getListings); // first 4 listings
 // router.get("/allListings", listingController.getAllListings);
 router.get("/filters", listingController.filterListings);
 router.get("/total/:id", listingController.getTotal);
+// Saved listings
+router
+  .route("/saved-listings")
+  .get(authController.protect, listingController.getSavedListings)
+  .post(authController.protect, listingController.saveListing);
 
 router
   .route("/:listingId")
@@ -20,15 +25,6 @@ router
   .patch(authController.protect, listingController.updateListings)
   .delete(listingController.deleteListing);
 
-// Saved listings
-router
-  .route("/saved-listings")
-  .get(listingController.getSavedListings)
-  .post(listingController.saveListing);
-
-// router.get("/getListingById/:id", listingController.getpg);
-// router.patch("/updateListing/:id", listingController.updateListings);
-// router.delete("/deleteListing/:id", listingController.deleteListing);
 router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
 router.post(
   "/createPgListing",
@@ -42,12 +38,6 @@ router.post(
 );
 
 // Room related--------------------------------
-
-// router.post(
-//   "/createRoom",
-//   upload.array("image", 10),
-//   listingController.createPgRoom,
-// );
 
 router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
 router

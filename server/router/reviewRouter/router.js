@@ -5,7 +5,7 @@ const authController = require("../../controllers/authController");
 const router = express.Router();
 
 router
-  .route("/")
+  .route("/listing")
   .get(reviewController.getAllReview)
   .post(
     authController.protect,
@@ -13,6 +13,6 @@ router
     reviewController.createReview,
   );
 
-router.route("/:id").get(reviewController.getAllReviewById);
+router.route("/listing/:id").get(reviewController.getAllReviewById);
 
 module.exports = router;
