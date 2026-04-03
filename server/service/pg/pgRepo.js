@@ -447,6 +447,7 @@ class PgRepo {
           FROM rooms r
           WHERE r.listing_id = l.id
             AND r.status = 'available'
+            AND r.available_beds > 0
             AND r.deleted_at IS NULL
             ${roomTypeCondition}
           ORDER BY r.${safeSortBy} ${safeSortOrder}
@@ -459,7 +460,7 @@ class PgRepo {
       AND l.deleted_at IS NULL;
   `;
 
-    // console.log("quey: ", query);
+    console.log("quey: ", query);
     // console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
     return rows[0] || null;
@@ -570,6 +571,7 @@ class PgRepo {
       FROM rooms
       WHERE listing_id = $1
         AND status = 'available'
+        AND available_beds > 0
         AND deleted_at IS NULL
       GROUP BY room_type;
 

@@ -25,7 +25,8 @@ router
   .patch(authController.protect, listingController.updateListings)
   .delete(listingController.deleteListing);
 
-router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
+// signature...................
+router.get("/upload-signature", listingController.uploadSignature);
 router.post(
   "/createPgListing",
   upload.array("image", 10),
@@ -37,6 +38,7 @@ router.post(
   photoController.uploadListingPhoto,
 );
 
+router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
 // Room related--------------------------------
 
 router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);

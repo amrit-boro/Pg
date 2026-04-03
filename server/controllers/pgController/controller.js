@@ -144,8 +144,11 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
 // UPDATE ROOM BY ID ==========================================
 
 exports.updateRoom = catchAsync(async (req, res, next) => {
-  const updateFields = { ...req.body };
-  const { id } = req.params;
+  console.log("callled");
+  const updateFields = req.body;
+  console.log("fiels: ", updateFields);
+  const { roomId: id } = req.params;
+  console.log("id: ", id);
   const existingRoom = await pgRepo.getRoomById(id);
   if (!existingRoom) {
     return next(new AppError(`Room not found with Id: ${id}!`, 404));
@@ -164,7 +167,6 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
 // GET ROOM BY ID ============================================
 
 exports.getRoom = catchAsync(async (req, res, next) => {
-  console.log("hello from the ");
   const { roomId: id } = req.params;
   const result = await pgRepo.getRoomById(id);
 
@@ -177,6 +179,29 @@ exports.getRoom = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: result,
+  });
+});
+// ================================================================================================
+exports.uploadSignature = catchAsync(async (req, res, next) => {
+  const timestamp = Math.round(new Date().getTime() / 1000);
+
+  // Any specific upload parameters go here (e.g., folder, transformation)
+  const paramsToSign = {
+    timestamp: timestamp,
+    folder: "test_folder",
+  };
+
+  const signature = cloudinary.utils.api_sign_request(
+    paramsToSign,
+    process.env.CLOUDINARY_API_SECRET,
+  );
+
+  res.json({
+    signature,
+    timestamp,
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    folder: "test_folder",
   });
 });
 
@@ -419,10 +444,12 @@ exports.reviewRoom = catchAsync(async (req, res, next) => {
 
 exports.getTotal = catchAsync(async (req, res, next) => {
   const { id } = req.params;
+  // check listings
   const pgresult = await pgRepo.getListingById(id);
   if (pgresult.length === 0) {
     return next(new AppError("No listing found", 400));
   }
+  // check total rooms
   const result = await pgRepo.getTotaltype(id);
   res.status(200).json({
     success: true,

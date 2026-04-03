@@ -11,6 +11,7 @@ const userRouter = require("./router/userRouter/router");
 const listingRouter = require("./router/pgRouter/router");
 const priceRouter = require("./router/priceRouter/router");
 const reviewRouter = require("./router/reviewRouter/router");
+const bookingRouter = require("./router/bookingRouter/router");
 
 const AppError = require("./utils/appError");
 const globalError = require("./controllers/errorController");
@@ -78,13 +79,12 @@ app.use("/api/v1/users", userRouter);
 // Listings
 app.use("/api/v1/listings", listingRouter);
 
-// Filters
-// app.use("/api/v1/filterlistings", filterRouter);
-
 // Review
 app.use("/api/v1/reviews", reviewRouter);
 // PRICE
 app.use("/api/v1/price", priceRouter);
+// BOOKING
+app.use("/api/v1/booking", bookingRouter);
 
 // ==================== ERROR HANDLING ====================
 

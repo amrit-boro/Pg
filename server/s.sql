@@ -331,12 +331,12 @@ CREATE INDEX idx_photos_listing ON listing_photos(listing_id);
 -- ============================================================
 -- 9. BOOKING REQUESTS
 -- ============================================================
-
 CREATE TABLE bookings (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
     listing_id          UUID            NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
-    guest_id            UUID            NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    host_id             UUID            NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    room_id             UUID            NOT NULL REFERENCES rooms(id)    ON DELETE RESTRICT,
+    guest_id            UUID            NOT NULL REFERENCES users(id)    ON DELETE RESTRICT,
+    host_id             UUID            NOT NULL REFERENCES users(id)    ON DELETE RESTRICT,
     status              booking_status  NOT NULL DEFAULT 'pending',
 
     -- Stay period
@@ -344,11 +344,13 @@ CREATE TABLE bookings (
     check_out_date      DATE            NOT NULL,
     num_occupants       SMALLINT        NOT NULL DEFAULT 1,
 
-    -- Financials (snapshot at booking time)
+    -- Financials (snapshot at booking time, sourced from rooms)
     price_per_month     NUMERIC(10,2)   NOT NULL,
-    total_amount        NUMERIC(10,2)   NOT NULL,
+    price_per_week      NUMERIC(10,2),
+    price_per_day       NUMERIC(10,2),
+    total_amount        NUMERIC(10,2)   
     security_deposit    NUMERIC(10,2)   NOT NULL DEFAULT 0,
-    currency            CHAR(3)         NOT NULL DEFAULT 'USD',
+    currency            CHAR(3)         NOT NULL DEFAULT 'INR',
 
     -- Guest message at booking
     guest_message       TEXT,
@@ -362,9 +364,15 @@ CREATE TABLE bookings (
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT chk_dates CHECK (check_out_date > check_in_date),
-    CONSTRAINT chk_occupants CHECK (num_occupants > 0)
+    -- Constraints
+    CONSTRAINT chk_dates       CHECK (check_out_date > check_in_date),
+    CONSTRAINT chk_occupants   CHECK (num_occupants > 0)
 );
+
+-- Prevent overlapping active bookings on the same room
+CREATE UNIQUE INDEX no_double_booking
+    ON bookings (room_id, check_in_date, check_out_date)
+    WHERE status NOT IN ('cancelled', 'rejected');
 
 CREATE INDEX idx_bookings_listing  ON bookings (listing_id);
 CREATE INDEX idx_bookings_guest    ON bookings (guest_id);
@@ -405,15 +413,15 @@ CREATE INDEX idx_payments_status  ON payments (status);
 CREATE TABLE reviews (
     id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_id      UUID        NOT NULL UNIQUE REFERENCES bookings(id),
-    reviewer_id     UUID        NOT NULL REFERENCES users(id),
-    reviewee_id     UUID        NOT NULL REFERENCES users(id),
+    reviewer_id     UUID        NOT NULL REFERENCES users(id), -- Who is giving the feedback?
+    reviewee_id     UUID        NOT NULL REFERENCES users(id), -- Who is receiving the feedback?
     listing_id      UUID        REFERENCES listings(id),   -- NULL for host/guest reviews
-    overall_rating  SMALLINT    NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
-    cleanliness     SMALLINT    CHECK (cleanliness BETWEEN 1 AND 5),
-    accuracy        SMALLINT    CHECK (accuracy BETWEEN 1 AND 5),
-    communication   SMALLINT    CHECK (communication BETWEEN 1 AND 5),
-    location_score  SMALLINT    CHECK (location_score BETWEEN 1 AND 5),
-    value           SMALLINT    CHECK (value BETWEEN 1 AND 5),
+    overall_rating  NUMERIC     NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+    cleanliness     SMALLINT    CHECK (cleanliness BETWEEN 1 AND 5), -- Measures how clean the place was
+    accuracy        SMALLINT    CHECK (accuracy BETWEEN 1 AND 5), -- Measures how truthful the listing description was //  Focus: “Did reality match what was advertised?”
+    communication   SMALLINT    CHECK (communication BETWEEN 1 AND 5), -- Measures how well the other person communicated
+    location_score  SMALLINT    CHECK (location_score BETWEEN 1 AND 5), -- Measures how good/convenient the location is
+    value           SMALLINT    CHECK (value BETWEEN 1 AND 5), -- Measures whether the experience was worth the price
     comment         TEXT,
     is_public       BOOLEAN     NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),

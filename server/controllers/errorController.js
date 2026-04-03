@@ -29,6 +29,7 @@ const sendErrorProd = (err, res) => {
 };
 
 const handleDuplicateDB = (err) => {
+  console.log("error: ", err);
   const match = err.detail.match(/\((.*?)\)=\((.*?)\)/);
   const field = match ? match[1] : "field";
   const value = match ? match[2] : "value";

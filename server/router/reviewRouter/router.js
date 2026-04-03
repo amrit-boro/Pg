@@ -13,6 +13,6 @@ router
     reviewController.createReview,
   );
 
-router.route("/listing/:id").get(reviewController.getAllReviewById);
+router.route("/listing/:id").get(reviewController.getListingAggregates);
 
 module.exports = router;
