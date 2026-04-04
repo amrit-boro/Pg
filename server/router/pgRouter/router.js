@@ -8,7 +8,7 @@ const { upload, uploadMedia } = require("../../utils/cloudinary");
 // Listings related--------------------------
 //posts-----------
 // router.post("/createRoom", upload.single("image"), pgController.createRoom);
-
+router.get("/search", listingController.search);
 router.get("/top-4", listingController.getListings); // first 4 listings
 // router.get("/allListings", listingController.getAllListings);
 router.get("/filters", listingController.filterListings);
@@ -22,7 +22,7 @@ router
 router
   .route("/:listingId")
   .get(listingController.getListing)
-  .patch(authController.protect, listingController.updateListings)
+  .patch(listingController.updateListings)
   .delete(listingController.deleteListing);
 
 // signature...................

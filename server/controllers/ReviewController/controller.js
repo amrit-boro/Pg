@@ -41,15 +41,25 @@ exports.createReview = catchAsync(async (req, res, next) => {
 
     // 2. Fetch booking details (Removed FOR UPDATE as unique constraint handles concurrency safely)
     const bookingResult = await BookingRepo.findBooking(booking_id);
-    if (bookingResult.length === 0) {
+    if (!bookingResult) {
       await client.query("ROLLBACK");
-      return next(new AppError("Booking not found!", 404));
+      return next(
+        new AppError(
+          "We couldn't find your booking. Please check the booking ID and try again.",
+
+          404,
+        ),
+      );
     }
-    console.log("guest id: ", bookingResult.guest_id);
     // 3. Authorization check
     if (bookingResult.guest_id !== reviewer_id) {
       await client.query("ROLLBACK");
-      return next(new AppError("You cann't review this booking!", 403));
+      return next(
+        new AppError(
+          "You cannot review this booking. You may have already done so.",
+          403,
+        ),
+      );
     }
 
     // 4. Booking must be completed
@@ -59,7 +69,7 @@ exports.createReview = catchAsync(async (req, res, next) => {
     // }
 
     if (bookingResult.host_id === reviewer_id) {
-      await db.query("ROLLBACK");
+      await client.query("ROLLBACK");
       return next(new AppError("You cannot review yourself!", 400));
     }
 
@@ -67,7 +77,6 @@ exports.createReview = catchAsync(async (req, res, next) => {
     // Safe to do math now because Joi guaranteed these are actual integers
     const overall_rating =
       (cleanliness + accuracy + communication + location_score + value) / 5;
-    // console.log("overall rating: ", overall_rating);
     const values = [
       booking_id,
       reviewer_id,
@@ -81,8 +90,13 @@ exports.createReview = catchAsync(async (req, res, next) => {
       value,
       comment, // This is now guaranteed to be safe and under 2000 chars
     ];
-    // console.log("value: ", values);
-    const newReview = await ReviewRepo.insertBooking(values);
+    const newReview = await ReviewRepo.insertReview(values);
+
+    // UPDATE AGGREGATES (only if listing_id exists)
+    if (bookingResult.listing_id) {
+      await PgRepo.upDateReview(listing_id);
+    }
+
     await client.query("COMMIT");
     res.status(200).json({
       success: true,

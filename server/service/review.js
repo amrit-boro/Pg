@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 class ReviewRepo {
-  static async insertBooking(values) {
+  static async insertReview(values) {
     const query = `
       INSERT INTO reviews (
         booking_id,

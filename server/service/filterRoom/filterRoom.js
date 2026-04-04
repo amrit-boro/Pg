@@ -277,6 +277,8 @@ class FilterRoom {
       l.available_from,
       l.max_occupants,
       l.utility_details,
+      l.avg_rating,
+      l.review_count,
       u.first_name,
       u.last_name,
       loc.address_line1,

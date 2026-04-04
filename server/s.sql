@@ -137,6 +137,9 @@ CREATE TABLE amenities (
 -- ============================================================
 -- 5. LISTINGS
 -- ============================================================
+CREATE INDEX idx_listings_title_trgm 
+ON listings USING gin (title gin_trgm_ops);
+
 
 CREATE TABLE listings (
     id                  UUID            PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -179,7 +182,7 @@ CREATE TABLE listings (
     extra_info          JSONB,          -- arbitrary host-defined metadata
 
     -- Aggregates (denormalized for performance)
-    avg_rating          NUMERIC(3,2)    DEFAULT 0,
+    avg_rating          NUMERIC(2,1)    DEFAULT 0,
     review_count        INTEGER         DEFAULT 0,
     view_count          INTEGER         DEFAULT 0,
 
@@ -427,7 +430,10 @@ CREATE TABLE reviews (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
+CREATE INDEX idx_reviews_listing_id ON reviews(listing_id);
+CREATE INDEX idx_reviews_reviewee_id ON reviews(reviewee_id);
+-- Composite index for loading the most recent reviews for a listing
+CREATE INDEX idx_reviews_listing_created ON reviews(listing_id, created_at DESC);
 -----------------------------------------------------Cir
 
 CREATE TABLE reviews (

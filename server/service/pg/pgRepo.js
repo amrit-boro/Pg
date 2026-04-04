@@ -2,6 +2,30 @@ const pool = require("../../config/db");
 const AppError = require("../../utils/appError");
 
 class PgRepo {
+  // search bar filter
+  static async searchListing(q) {
+    const query = `
+    SELECT 
+      l.id,
+      l.title,
+      l.description,
+      l.starting_price,
+      l.avg_rating,
+      (
+          SELECT lp.url
+          FROM listing_photos lp
+          WHERE lp.listing_id = l.id
+          LIMIT 1
+      ) AS photo_url
+    FROM listings l
+    WHERE l.title ILIKE '%' || $1 || '%'
+    ORDER BY l.avg_rating DESC
+    LIMIT 6;
+    `;
+    const { rows } = await pool.query(query, [`%${q}%`]);
+    return rows;
+  }
+
   static async findListings() {
     const limit = 4;
     const query = `
@@ -188,6 +212,8 @@ class PgRepo {
       l.house_rules,
       l.extra_info,
       l.avg_rating,
+      l.review_count,
+      l.view_count,
 
       loc.address_line1,
       loc.city,
@@ -240,6 +266,7 @@ class PgRepo {
     const ALLOWED_FIELDS = [
       "title",
       "description",
+      "avg_rating",
       "listing_type",
       "status",
       "total_rooms",
@@ -913,6 +940,25 @@ class PgRepo {
     `;
 
     const { rows } = await pool.query(query, [id]);
+    return rows;
+  }
+
+  static async upDateReview(listing_id) {
+    const query = `
+      UPDATE listings 
+      SET 
+        review_count = (
+          SELECT COUNT(*) FROM reviews WHERE listing_id = $1
+        ),
+        avg_rating = (
+          SELECT COALESCE(AVG(overall_rating),0)
+          FROM reviews
+          WHERE listing_id = $1
+        )
+      WHERE id = $1;
+    `;
+    const { rows } = await pool.query(query, [listing_id]);
+    console.log(rows);
     return rows;
   }
 }

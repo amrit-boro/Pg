@@ -9,6 +9,20 @@ const filterRepo = require("../../service/filterRoom/filterRoom");
 
 // filter listings==========================
 
+exports.search = catchAsync(async (req, res, next) => {
+  const { q } = req.query;
+  console.log("q:", q);
+  if (!q) {
+    return next(new AppError("Query is required!", 400));
+  }
+
+  const searchResult = await pgRepo.searchListing(q);
+  res.status(200).json({
+    success: true,
+    data: searchResult,
+  });
+});
+
 exports.filterListings = catchAsync(async (req, res, next) => {
   const allowedFilters = ["listing_type", "maxPrice", "minPrice", "page"];
 
@@ -101,7 +115,8 @@ exports.getAllListings = catchAsync(async (req, res, next) => {
 });
 
 exports.updateListings = catchAsync(async (req, res, next) => {
-  const { id } = req.params;
+  const { listingId: id } = req.params;
+  console.log("id:", id);
   // Check listing is active or not-----
   const existingListing = await PgRepo.findListingById(id);
   if (!existingListing) {
