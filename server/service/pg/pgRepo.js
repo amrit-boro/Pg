@@ -266,7 +266,6 @@ class PgRepo {
     const ALLOWED_FIELDS = [
       "title",
       "description",
-      "avg_rating",
       "listing_type",
       "status",
       "total_rooms",
@@ -594,7 +593,8 @@ class PgRepo {
     const query = `
       SELECT 
         room_type AS type,
-        COUNT(*) AS total
+        COUNT(*) AS total,
+        MIN(price_per_month) as price
       FROM rooms
       WHERE listing_id = $1
         AND status = 'available'
