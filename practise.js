@@ -1,15 +1,12 @@
-const h = {
-  is_admin: 123,
-  name: "Amrit",
-};
+newocc = [
+  { type: "A", total: "10", price: 8000 },
+  { type: "B", total: "5", price: 6000 },
+];
 
-const all = ["name"];
+const count = newocc?.reduce((acc, item) => {
+  console.log("item: ", item.total);
+  acc[item.type] = item.price;
+  return acc;
+}, {} || {});
 
-const result = Object.keys(h)
-  .filter((key) => all.includes(key))
-  .reduce((obj, val) => {
-    obj[val] = h[val];
-    return obj;
-  }, {});
-
-console.log(result);
+console.log(count);
