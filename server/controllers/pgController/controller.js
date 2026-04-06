@@ -487,7 +487,7 @@ exports.saveListing = catchAsync(async (req, res, next) => {
 });
 
 exports.getSavedListings = catchAsync(async (req, res, next) => {
-  const userId = req.user.id;
+  const userId = "a636d235-d681-42d2-92eb-74e57ef679aa";
   const result = await pgRepo.getSaveListing(userId);
   res.status(200).json({
     success: true,

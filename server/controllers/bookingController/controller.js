@@ -9,7 +9,7 @@ exports.createBooking = catchAsync(async (req, res, next) => {
   // In a PG model, we usually just need a move-in date.
   const { listing_id, room_id, num_occupants, check_in_date, guest_message } =
     req.body;
-  console.log("room_id:", room_id);
+
   // ─── 1. Validate required fields ──────────────────────────────────────────
   if (!listing_id || !room_id || !check_in_date) {
     return next(
@@ -36,7 +36,6 @@ exports.createBooking = catchAsync(async (req, res, next) => {
 
     // ─── 3. Fetch & lock room row (Crucial for the 10-student race condition) ─
     const room = await BookingRepo.findRoom(room_id);
-    console.log(room);
     if (!room || room.deleted_at !== null) {
       await client.query("ROLLBACK");
       return next(new AppError("Room not found.", 404));
