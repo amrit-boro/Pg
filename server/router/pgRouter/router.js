@@ -17,7 +17,8 @@ router.get("/total/:id", listingController.getTotal);
 router
   .route("/saved-listings")
   .get(listingController.getSavedListings)
-  .post(authController.protect, listingController.saveListing);
+  .post(listingController.saveListing)
+  .delete(listingController.deleteSavedListing);
 
 router
   .route("/:listingId")

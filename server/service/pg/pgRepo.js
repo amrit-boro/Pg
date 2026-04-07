@@ -486,7 +486,7 @@ class PgRepo {
       AND l.deleted_at IS NULL;
   `;
 
-    console.log("quey: ", query);
+    // console.log("quey: ", query);
     // console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
     return rows[0] || null;
@@ -715,7 +715,6 @@ class PgRepo {
       .map((val, idx) => `${val} = $${idx + 1}`)
       .join(", ");
     const query = `UPDATE listings SET ${placeholders} WHERE id = $${columns.length + 1} RETURNING *`;
-    console.log(query);
 
     const { rows } = await pool.query(query, [...values, id]);
     return rows[0];
@@ -774,7 +773,6 @@ class PgRepo {
       RETURNING *;
     `;
 
-    console.log(query);
     const { rows } = await pool.query(query, [...values, id]);
     return rows[0];
   }
@@ -891,6 +889,15 @@ class PgRepo {
 
     const { rows } = await pool.query(query, [userId, limit, offset]);
     return rows;
+  }
+
+  static async removeSavedListing(id, listingId) {
+    const query = `
+      DELETE FROM saved_listings 
+      WHERE user_id = $1
+        AND listing_id = $2;
+    `;
+    return await pool.query(query, [id, listingId]);
   }
 
   // ================================

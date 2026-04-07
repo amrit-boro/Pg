@@ -25,7 +25,8 @@ exports.search = catchAsync(async (req, res, next) => {
 
 exports.filterListings = catchAsync(async (req, res, next) => {
   const allowedFilters = ["listing_type", "maxPrice", "minPrice", "page"];
-
+  // const { id } = req.user;
+  const id = "a636d235-d681-42d2-92eb-74e57ef679aa";
   const filterData = {};
 
   for (const key of Object.keys(req.query)) {
@@ -57,7 +58,9 @@ exports.filterListings = catchAsync(async (req, res, next) => {
     if (filterData.maxPrice) filterData.maxPrice = max;
   }
 
-  const filterValues = await filterRepo.filterListings(filterData);
+  // add user_id
+
+  const filterValues = await filterRepo.filterListings(filterData, id);
 
   if (!filterValues || filterValues.length === 0) {
     return res.status(200).json({
@@ -476,7 +479,8 @@ exports.getTotal = catchAsync(async (req, res, next) => {
 // SAVED LISTINGS
 
 exports.saveListing = catchAsync(async (req, res, next) => {
-  const { id } = req.user;
+  console.log("req body :", req.body);
+  const id = "a636d235-d681-42d2-92eb-74e57ef679aa"; // harcoded
   const { listing_id } = req.body;
 
   await pgRepo.saveListing(id, listing_id);
@@ -493,5 +497,21 @@ exports.getSavedListings = catchAsync(async (req, res, next) => {
     success: true,
     total: result.length,
     data: result,
+  });
+});
+
+exports.deleteSavedListing = catchAsync(async (req, res, next) => {
+  // const {id} = req.user
+  const id = "a636d235-d681-42d2-92eb-74e57ef679aa";
+  const { listing_id } = req.body;
+
+  const result = await pgRepo.removeSavedListing(id, listing_id);
+  if (result.rowCount === 0) {
+    return next(new AppError("Not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Deleted",
   });
 });

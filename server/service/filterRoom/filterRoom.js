@@ -188,7 +188,8 @@ class FilterRoom {
   //   return rows;
   // }
 
-  static async filterListings(filters = {}) {
+  static async filterListings(filters = {}, currentUserId) {
+    console.log("userId", filters.user_id);
     // 1. Sanitize Pagination & Sorting Inputs
     const limit = Math.max(1, Number(filters.limit) || 6);
     const page = Math.max(1, Number(filters.page) || 1);
@@ -266,28 +267,60 @@ class FilterRoom {
     });
 
     // 5. Final Query Construction
+    //   const baseQuery = `
+    //   SELECT
+    //     l.id,
+    //     l.title,
+    //     l.description,
+    //     l.listing_type,
+    //     l.starting_price,
+    //     l.currency,
+    //     l.available_from,
+    //     l.max_occupants,
+    //     l.utility_details,
+    //     l.avg_rating,
+    //     l.review_count,
+    //     u.first_name,
+    //     u.last_name,
+    //     loc.address_line1,
+    //     loc.city,
+    //     loc.state,
+
+    //     COALESCE(
+    //       JSON_AGG(
+    //         JSON_BUILD_OBJECT('url', ph.url, 'caption', ph.caption)
+    //       ) FILTER (WHERE ph.listing_id IS NOT NULL),
+    //       '[]'
+    //     ) AS photos
+
+    //   FROM listings l
+    //   JOIN users u ON l.host_id = u.id
+    //   JOIN locations loc ON l.location_id = loc.id
+    //   LEFT JOIN listing_photos ph ON ph.listing_id = l.id
+    //   WHERE ${conditions.join(" AND ")}
+    //   GROUP BY l.id, u.id, loc.id
+    //   ORDER BY l.${safeSortBy} ${safeSortOrder}
+    //   LIMIT ${addParam(limit)}
+    //   OFFSET ${addParam(offset)}
+    // `;
+
+    // new Final Query :
     const baseQuery = `
     SELECT
-      l.id,
-      l.title,
-      l.description,
-      l.listing_type,
-      l.starting_price,
-      l.currency,
-      l.available_from,
-      l.max_occupants,
-      l.utility_details,
-      l.avg_rating,
-      l.review_count,
-      u.first_name,
-      u.last_name,
-      loc.address_line1,
-      loc.city,
-      loc.state,
-      
+      l.id, l.title, l.description, l.listing_type,
+      l.starting_price, l.currency, l.available_from,
+      l.max_occupants, l.utility_details, l.avg_rating, l.review_count,
+      u.first_name, u.last_name,
+      loc.address_line1, loc.city, loc.state,
+
+      CASE 
+        WHEN COUNT(sl.listing_id) > 0 THEN true 
+        ELSE false 
+      END AS "isSaved",
+
       COALESCE(
         JSON_AGG(
-          JSON_BUILD_OBJECT('url', ph.url, 'caption', ph.caption)
+          JSON_BUILD_OBJECT('url', ph.url, 'caption', ph.caption,'isCover',ph.is_cover)
         ) FILTER (WHERE ph.listing_id IS NOT NULL), 
         '[]'
       ) AS photos
@@ -296,6 +329,10 @@ class FilterRoom {
     JOIN users u ON l.host_id = u.id
     JOIN locations loc ON l.location_id = loc.id
     LEFT JOIN listing_photos ph ON ph.listing_id = l.id
+    LEFT JOIN saved_listings sl 
+      ON sl.listing_id = l.id 
+      AND sl.user_id = ${addParam(currentUserId)}  -- ✅ now actually has a value
+
     WHERE ${conditions.join(" AND ")}
     GROUP BY l.id, u.id, loc.id
     ORDER BY l.${safeSortBy} ${safeSortOrder}
@@ -303,7 +340,7 @@ class FilterRoom {
     OFFSET ${addParam(offset)}
   `;
 
-    // console.log("SQL:", baseQuery);
+    console.log("SQL:", baseQuery);
     // console.log("Values:", values);
 
     const { rows } = await pool.query(baseQuery, values);
