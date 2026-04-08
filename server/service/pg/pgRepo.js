@@ -191,62 +191,69 @@ class PgRepo {
     return rows;
   }
 
-  static async getListingById(id) {
+  static async getListingById(id, currentUserId) {
     const query = `
     SELECT 
-      l.id,
-      l.host_id,
-      l.location_id,
-      l.title,
-      l.description,
-      l.listing_type,
-      l.status,
-      l.total_rooms,
-      l.available_rooms,
-      l.max_occupants,
-      l.allows_smoking,
-      l.starting_price,
-      l.security_deposit,
-      l.utilities_included,
-      l.utility_details,
-      l.house_rules,
-      l.extra_info,
-      l.avg_rating,
-      l.review_count,
-      l.view_count,
+  l.id,
+  l.host_id,
+  l.location_id,
+  l.title,
+  l.description,
+  l.listing_type,
+  l.status,
+  l.total_rooms,
+  l.available_rooms,
+  l.max_occupants,
+  l.allows_smoking,
+  l.starting_price,
+  l.security_deposit,
+  l.utilities_included,
+  l.utility_details,
+  l.house_rules,
+  l.extra_info,
+  l.avg_rating,
+  l.review_count,
+  l.view_count,
 
-      loc.address_line1,
-      loc.city,
-      loc.state,
-      loc.country_code,
-      loc.latitude,
-      loc.longitude,
-      loc.geog,
+  EXISTS (
+    SELECT 1 
+    FROM saved_listings sl
+    WHERE sl.listing_id = l.id
+      AND sl.user_id = $2
+  ) AS "isSaved",
 
-      (
-        SELECT COALESCE(
-          JSON_AGG(
-            JSON_BUILD_OBJECT(
-              'listing_id', ph.listing_id,
-              'photoid', ph.id,
-              'url', ph.url,
-              'caption', ph.caption,
-              'is_cover', ph.is_cover
-            )
-          ), '[]'
+  loc.address_line1,
+  loc.city,
+  loc.state,
+  loc.country_code,
+  loc.latitude,
+  loc.longitude,
+  loc.geog,
+
+  (
+    SELECT COALESCE(
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'listing_id', ph.listing_id,
+          'photoid', ph.id,
+          'url', ph.url,
+          'caption', ph.caption,
+          'is_cover', ph.is_cover
         )
-        FROM listing_photos ph
-        WHERE ph.listing_id = l.id
-      ) AS photos
+      ), '[]'
+    )
+    FROM listing_photos ph
+    WHERE ph.listing_id = l.id
+  ) AS photos
 
-    FROM listings l
-    JOIN locations loc ON l.location_id = loc.id
-    WHERE l.id = $1
-      AND l.status = 'active'
-      AND l.deleted_at IS NULL
+FROM listings l
+JOIN locations loc ON l.location_id = loc.id
+WHERE l.id = $1
+  AND l.status = 'active'
+  AND l.deleted_at IS NULL;
   `;
 
-    const { rows } = await pool.query(query, [id]);
+    const { rows } = await pool.query(query, [id, currentUserId]);
     return rows[0];
   }
 
@@ -843,8 +850,9 @@ class PgRepo {
     console.log("rowss:  ", rows);
     return { data: rows[0], total: rowCount };
   }
-
+  // =======================================================
   // SAVED LISTING---------------------------------
+  // =======================================================
 
   static async saveListing(userId, listingId) {
     const query = `
@@ -868,6 +876,7 @@ class PgRepo {
         l.title,
         l.starting_price,
         l.description,
+        l.avg_rating,
         p.url ,
         s.saved_at
 
@@ -898,6 +907,40 @@ class PgRepo {
         AND listing_id = $2;
     `;
     return await pool.query(query, [id, listingId]);
+  }
+
+  // ================================================
+  // SAVED ROOMS
+  // ================================================
+
+  static async getSavedRooms(userId) {
+    const query = `
+      SELECT 
+        r.id,
+        r.title,
+        r.room_number,
+        r.room_type,
+        r.price_per_month,
+        r.description,
+        rp.url
+
+      FROM saved_rooms sr 
+      JOIN rooms r
+        ON r.id = sr.room_id
+      LEFT JOIN LATERAL(
+        SELECT
+          url
+        FROM rooms_photos rp
+        WHERE rp.room_id = r.id
+        LIMIT 1
+      ) rp ON true
+      WHERE sr.user_id = $1
+      ORDER BY sr.saved_at DESC
+      LIMIT 6;
+    `;
+
+    const { rows } = await pool.query(query, [userId]);
+    return rows;
   }
 
   // ================================

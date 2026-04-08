@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const listingController = require("../../controllers/pgController/controller");
+const roomController = require("../../controllers/pgController/roomController");
 const photoController = require("../../controllers/photoController/deleteRoomphoto");
 const authController = require("../../controllers/authController");
 const { upload, uploadMedia } = require("../../utils/cloudinary");
@@ -19,6 +20,8 @@ router
   .get(listingController.getSavedListings)
   .post(listingController.saveListing)
   .delete(listingController.deleteSavedListing);
+
+router.get("/saved-rooms", roomController.savedRooms);
 
 router
   .route("/:listingId")
@@ -40,9 +43,14 @@ router.post(
 );
 
 router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
-// Room related--------------------------------
+// =======================================================
+// Room related
+// =======================================================
 
 router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
+console.log("===============");
+
+console.log("********");
 router
   .route("/room/:roomId")
   .get(listingController.getRoom)

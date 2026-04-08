@@ -328,6 +328,18 @@ CREATE TABLE saved_listings (
     PRIMARY KEY (user_id, listing_id)
 );
 
+
+-- SAVED ROOMS
+CREATE TABLE saved_rooms (
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    room_id         UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    listing_id      UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+    saved_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, room_id)
+
+);
+
+
 CREATE INDEX idx_saved_user ON saved_listings(user_id);
 CREATE INDEX idx_photos_listing ON listing_photos(listing_id);
 

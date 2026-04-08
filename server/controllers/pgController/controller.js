@@ -93,7 +93,8 @@ exports.getListings = catchAsync(async (req, res, next) => {
 
 exports.getListing = catchAsync(async (req, res, next) => {
   const { listingId: id } = req.params;
-  const getListing = await pgRepo.getListingById(id);
+  const currentUserId = "a636d235-d681-42d2-92eb-74e57ef679aa";
+  const getListing = await pgRepo.getListingById(id, currentUserId);
   if (getListing.length === 0) {
     return next(new AppError("No listing found", 400));
   }
@@ -463,10 +464,12 @@ exports.reviewRoom = catchAsync(async (req, res, next) => {
 exports.getTotal = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   // check listings
-  const pgresult = await pgRepo.getListingById(id);
+  console.log("id: ", id);
+  const pgresult = await pgRepo.findListingById(id);
   if (pgresult.length === 0) {
     return next(new AppError("No listing found", 400));
   }
+  console.log("=========");
   // check total rooms
   const result = await pgRepo.getTotaltype(id);
   res.status(200).json({
@@ -493,6 +496,9 @@ exports.saveListing = catchAsync(async (req, res, next) => {
 exports.getSavedListings = catchAsync(async (req, res, next) => {
   const userId = "a636d235-d681-42d2-92eb-74e57ef679aa";
   const result = await pgRepo.getSaveListing(userId);
+  if (result.length === 0) {
+    return next(new AppError("No saved-listing found!", 404));
+  }
   res.status(200).json({
     success: true,
     total: result.length,
