@@ -21,7 +21,14 @@ router
   .post(listingController.saveListing)
   .delete(listingController.deleteSavedListing);
 
-router.get("/saved-rooms", roomController.savedRooms);
+// =============
+// SAVE ROOM
+// =============
+router
+  .route("/saved-rooms")
+  .get(roomController.savedRooms)
+  .post(roomController.saveRooms)
+  .delete(roomController.deleteSavedRoom);
 
 router
   .route("/:listingId")

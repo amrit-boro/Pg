@@ -398,7 +398,7 @@ WHERE l.id = $1
   }
 
   // GET ALL ROOMS WITH A SPECIFIC ID-------------------------
-  static async getAllRoomsById(filters = {}) {
+  static async getAllRoomsById(filters = {}, currentUser) {
     const {
       listingId: pgId,
       type,
@@ -436,6 +436,9 @@ WHERE l.id = $1
     values.push(offset);
     const offsetIndex = values.length;
 
+    values.push(currentUser);
+    const currentUserIndex = values.length;
+
     const query = `
     SELECT
       l.id,
@@ -465,6 +468,13 @@ WHERE l.id = $1
             'review_count', r.review_count,
             'view_count', r.view_count,
             'capacity', r.capacity,
+            'isSaved', EXISTS (
+              SELECT 1 
+              FROM saved_rooms sr
+              WHERE sr.room_id = r.id
+                AND sr.user_id = $${currentUserIndex}
+              ),
+
             'room_photo', (
               SELECT JSON_BUILD_OBJECT(
                 'photo_id', rp.id,
@@ -493,8 +503,8 @@ WHERE l.id = $1
       AND l.deleted_at IS NULL;
   `;
 
-    // console.log("quey: ", query);
-    // console.log("vlues; ", values);
+    console.log("quey: ", query);
+    console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
     return rows[0] || null;
   }
@@ -865,6 +875,19 @@ WHERE l.id = $1
     return rows[0];
   }
 
+  // ========================
+  // SAVE ROOM
+  static async saveRooms(userId, roomId, listingId) {
+    const query = `
+      INSERT INTO saved_rooms(user_id, room_id,listing_id)
+      VALUES($1,$2,$3)
+      ON CONFLICT (user_id, room_id) DO NOTHING
+      RETURNING *;
+    `;
+    const { rows } = await pool.query(query, [userId, roomId, listingId]);
+    return rows[0];
+  }
+
   static async getSaveListing(userId) {
     const page = 1;
     const limit = 6;
@@ -907,6 +930,16 @@ WHERE l.id = $1
         AND listing_id = $2;
     `;
     return await pool.query(query, [id, listingId]);
+  }
+
+  static async removeRoom(userId, roomId) {
+    const query = `
+      DELETE FROM saved_rooms
+      WHERE user_id = $1
+        AND room_id = $2;
+    `;
+
+    return await pool.query(query, [userId, roomId]);
   }
 
   // ================================================

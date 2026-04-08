@@ -144,7 +144,10 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
     ...req.query,
   };
 
-  const rooms = await pgRepo.getAllRoomsById(filters);
+  // const currentUser = req.user
+  const currentUser = "a636d235-d681-42d2-92eb-74e57ef679aa";
+
+  const rooms = await pgRepo.getAllRoomsById(filters, currentUser);
   if (!rooms || rooms.rooms.length === 0) {
     return res.status(200).json({
       success: true,
@@ -496,13 +499,11 @@ exports.saveListing = catchAsync(async (req, res, next) => {
 exports.getSavedListings = catchAsync(async (req, res, next) => {
   const userId = "a636d235-d681-42d2-92eb-74e57ef679aa";
   const result = await pgRepo.getSaveListing(userId);
-  if (result.length === 0) {
-    return next(new AppError("No saved-listing found!", 404));
-  }
+
   res.status(200).json({
     success: true,
     total: result.length,
-    data: result,
+    data: result || [],
   });
 });
 
@@ -511,10 +512,7 @@ exports.deleteSavedListing = catchAsync(async (req, res, next) => {
   const id = "a636d235-d681-42d2-92eb-74e57ef679aa";
   const { listing_id } = req.body;
 
-  const result = await pgRepo.removeSavedListing(id, listing_id);
-  if (result.rowCount === 0) {
-    return next(new AppError("Not found", 404));
-  }
+  await pgRepo.removeSavedListing(id, listing_id);
 
   res.status(200).json({
     success: true,
