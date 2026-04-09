@@ -338,137 +338,247 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
   }
 });
 
+// --------------Create Pg Room ----------
+// Method 1: OLD
+// exports.createPgRoom = catchAsync(async (req, res, next) => {
+//   // Define variables at the top, but DO NOT check out the DB client yet
+//   let client;
+//   let uploadResults = [];
+//   let uploadedVideo = null;
+//   const images = req.files.images || [];
+//   const video = req.files.video?.[0];
+
+//   console.log("file: ", req.files.images);
+
+//   if (!images || images.length < 3) {
+//     return next(new AppError("You must upload atleast 3 photos!", 400));
+//   }
+
+//   if (!video) {
+//     return next(new AppError("You must upload a video!", 400));
+//   }
+
+//   const photolimit = 5 * 1024 * 1024; // 5MB lilmit
+
+//   for (const img of images) {
+//     // check type
+//     if (!img.mimetype.startsWith("image/")) {
+//       return next(
+//         new AppError(`File '${img.originalname}' is not a valid image! `, 400),
+//       );
+//     }
+
+//     // check size
+//     if (img.size > photolimit) {
+//       return next(
+//         new AppError(
+//           `Photo '${img.originalname}' is too large! Please keep individual photos under 5MB.`,
+//           400,
+//         ),
+//       );
+//     }
+//   }
+
+//   try {
+//     // 1. Validate inputs early (fast fail)
+
+//     // 2. Upload ALL media in parallel (Images AND Video together)
+//     // This dramatically reduces the total wait time.
+//     const imageUploadPromises = images.map((file) =>
+//       streamUpload(file.buffer, "image"),
+//     );
+//     const videoUploadPromise = streamUpload(video.buffer, "video");
+
+//     const [resolvedImages, resolvedVideo] = await Promise.all([
+//       Promise.all(imageUploadPromises),
+//       videoUploadPromise,
+//     ]);
+
+//     // Assign to our outer variables for the catch block to access if DB fails
+//     uploadResults = resolvedImages;
+//     uploadedVideo = resolvedVideo;
+
+//     // 3. NOW check out the DB connection (Network IO is done)
+//     client = await pool.connect();
+//     await client.query("BEGIN");
+
+//     // 4. Database Operations
+//     const newRoom = await pgRepo.createRoom(client, { ...req.body });
+
+//     const photos = uploadResults.map((result, i) => ({
+//       room_id: newRoom.id,
+//       url: result.secure_url,
+//       public_id: result.public_id,
+//       caption: req.body.caption || null,
+//       is_cover: i === 0,
+//       sort_order: i,
+//       media_type: "image",
+//     }));
+
+//     photos.push({
+//       room_id: newRoom.id,
+//       url: uploadedVideo.secure_url,
+//       public_id: uploadedVideo.public_id,
+//       caption: "Room Video",
+//       is_cover: false,
+//       sort_order: 0,
+//       media_type: "video",
+//     });
+
+//     const savedMedia = await pgRepo.createRoomsPhotos(client, photos);
+
+//     await client.query("COMMIT");
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Room created successfully!!",
+//       data: newRoom,
+//       photos: savedMedia,
+//     });
+//   } catch (error) {
+//     // 5. Cleanup Database
+//     if (client) {
+//       await client.query("ROLLBACK");
+//     }
+
+//     // 6. Cleanup Cloudinary (Fixed syntax errors)
+//     const cleanupPromises = [];
+
+//     if (uploadResults && uploadResults.length > 0) {
+//       // Removed curly braces so the promise is implicitly returned
+//       const imageCleanup = uploadResults.map((r) =>
+//         cloudinary.uploader.destroy(r.public_id),
+//       );
+//       cleanupPromises.push(...imageCleanup);
+//     }
+
+//     if (uploadedVideo) {
+//       // Fixed argument syntax for Cloudinary video deletion
+//       cleanupPromises.push(
+//         cloudinary.uploader.destroy(uploadedVideo.public_id, {
+//           resource_type: "video",
+//         }),
+//       );
+//     }
+
+//     // Wait for all cleanup tasks to finish
+//     await Promise.allSettled(cleanupPromises); // Promise.allSettled is safer here so one failed deletion doesn't stop the rest
+
+//     next(error);
+//   } finally {
+//     // 7. Ensure connection is released ONLY if it was actually acquired
+//     if (client) {
+//       client.release();
+//     }
+//   }
+// });
+
+// The new ONE Create Pg Romm--------------
+
+// ==========================================
+// STEP 1: CREATE THE ROOM (Text Data Only)
+// ==========================================
 exports.createPgRoom = catchAsync(async (req, res, next) => {
-  // Define variables at the top, but DO NOT check out the DB client yet
   let client;
-  let uploadResults = [];
-  let uploadedVideo = null;
-  const images = req.files.images || [];
-  const video = req.files.video?.[0];
-
-  console.log("file: ", req.files.images);
-
-  if (!images || images.length < 3) {
-    return next(new AppError("You must upload atleast 3 photos!", 400));
-  }
-
-  if (!video) {
-    return next(new AppError("You must upload a video!", 400));
-  }
-
-  const photolimit = 5 * 1024 * 1024; // 5MB lilmit
-
-  for (const img of images) {
-    // check type
-    if (!img.mimetype.startsWith("image/")) {
-      return next(
-        new AppError(`File '${img.originalname}' is not a valid image! `, 400),
-      );
-    }
-
-    // check size
-    if (img.size > photolimit) {
-      return next(
-        new AppError(
-          `Photo '${img.originalname}' is too large! Please keep individual photos under 5MB.`,
-          400,
-        ),
-      );
-    }
-  }
 
   try {
-    // 1. Validate inputs early (fast fail)
-
-    // 2. Upload ALL media in parallel (Images AND Video together)
-    // This dramatically reduces the total wait time.
-    const imageUploadPromises = images.map((file) =>
-      streamUpload(file.buffer, "image"),
-    );
-    const videoUploadPromise = streamUpload(video.buffer, "video");
-
-    const [resolvedImages, resolvedVideo] = await Promise.all([
-      Promise.all(imageUploadPromises),
-      videoUploadPromise,
-    ]);
-
-    // Assign to our outer variables for the catch block to access if DB fails
-    uploadResults = resolvedImages;
-    uploadedVideo = resolvedVideo;
-
-    // 3. NOW check out the DB connection (Network IO is done)
     client = await pool.connect();
     await client.query("BEGIN");
 
-    // 4. Database Operations
+    // Create the room using ONLY the text data from the form
     const newRoom = await pgRepo.createRoom(client, { ...req.body });
-
-    const photos = uploadResults.map((result, i) => ({
-      room_id: newRoom.id,
-      url: result.secure_url,
-      public_id: result.public_id,
-      caption: req.body.caption || null,
-      is_cover: i === 0,
-      sort_order: i,
-      media_type: "image",
-    }));
-
-    photos.push({
-      room_id: newRoom.id,
-      url: uploadedVideo.secure_url,
-      public_id: uploadedVideo.public_id,
-      caption: "Room Video",
-      is_cover: false,
-      sort_order: 0,
-      media_type: "video",
-    });
-
-    const savedMedia = await pgRepo.createRoomsPhotos(client, photos);
 
     await client.query("COMMIT");
 
+    // Return the new room ID to the frontend immediately so it can
+    // fire off the parallel image and video uploads
     return res.status(201).json({
       success: true,
-      message: "Room created successfully!!",
+      message: "Room details saved! Awaiting media...",
       data: newRoom,
-      photos: savedMedia,
     });
   } catch (error) {
-    // 5. Cleanup Database
-    if (client) {
-      await client.query("ROLLBACK");
-    }
-
-    // 6. Cleanup Cloudinary (Fixed syntax errors)
-    const cleanupPromises = [];
-
-    if (uploadResults && uploadResults.length > 0) {
-      // Removed curly braces so the promise is implicitly returned
-      const imageCleanup = uploadResults.map((r) =>
-        cloudinary.uploader.destroy(r.public_id),
-      );
-      cleanupPromises.push(...imageCleanup);
-    }
-
-    if (uploadedVideo) {
-      // Fixed argument syntax for Cloudinary video deletion
-      cleanupPromises.push(
-        cloudinary.uploader.destroy(uploadedVideo.public_id, {
-          resource_type: "video",
-        }),
-      );
-    }
-
-    // Wait for all cleanup tasks to finish
-    await Promise.allSettled(cleanupPromises); // Promise.allSettled is safer here so one failed deletion doesn't stop the rest
-
+    if (client) await client.query("ROLLBACK");
     next(error);
   } finally {
-    // 7. Ensure connection is released ONLY if it was actually acquired
-    if (client) {
-      client.release();
-    }
+    if (client) client.release();
   }
+});
+
+// Upload image room
+exports.uploadRoomImages = catchAsync(async (req, res, next) => {
+  const { roomId } = req.params;
+  // Verify file exists
+  console.log("hello");
+  if (!req.files || req.files.length === 0) {
+    return next(new AppError("No images provided for upload!", 400));
+  }
+
+  // 2. Prepare the database insert promises
+  // req.files is an array populated by multer-storage-cloudinary
+  const uploadPromises = req.files.map((file, index) => {
+    // Cloudinary specific fields returned by Multer
+    const url = file.path;
+    const public_id = file.filename;
+
+    const is_cover = index === 0;
+    const sort_order = index;
+
+    // Execute the insert query
+    return pool.query(
+      `INSERT INTO rooms_photos 
+          (room_id, url, public_id, is_cover, sort_order) 
+         VALUES 
+          ($1, $2, $3, $4, $5) 
+         RETURNING id, url, is_cover, sort_order`,
+      [roomId, url, public_id, is_cover, sort_order],
+    );
+  });
+
+  // 3. Run all database inserts in parallel for maximum speed
+  const results = await Promise.all(uploadPromises);
+
+  // Extract the returned rows to send back to the frontend
+  const insertedPhotos = results.map((result) => result.rows[0]);
+
+  // 4. Send success response
+  res.status(201).json({
+    message: "Images successfully uploaded and linked to room.",
+    photos: insertedPhotos,
+  });
+});
+
+// Upload room video
+exports.uploadRoomVideo = catchAsync(async (req, res, next) => {
+  const { roomId } = req.params;
+  // Verify file exists
+  if (!req.file) {
+    return next(new AppError("No video provided for upload", 400));
+  }
+
+  // 2) Extract Cloudinary Data
+  const url = req.file.path;
+  const public_id = req.file.filename;
+
+  // 3. Save to database
+  // We explicitly flag media_type as 'video' so your frontend knows
+  // to render a <video> tag instead of an <img> tag for this URL.
+  const result = await pool.query(
+    `INSERT INTO rooms_photos 
+        (room_id, url, public_id, media_type) 
+       VALUES 
+        ($1, $2, $3, $4) 
+       RETURNING id, url, media_type`,
+    [roomId, url, public_id, "video"],
+  );
+
+  const insertedVideo = result.rows[0];
+
+  // 4. Send success response
+  res.status(201).json({
+    message: "Video successfully uploaded and linked to room.",
+    video: insertedVideo,
+  });
 });
 
 exports.deleteListing = catchAsync(async (req, res, next) => {

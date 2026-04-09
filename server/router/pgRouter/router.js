@@ -4,7 +4,11 @@ const listingController = require("../../controllers/pgController/controller");
 const roomController = require("../../controllers/pgController/roomController");
 const photoController = require("../../controllers/photoController/deleteRoomphoto");
 const authController = require("../../controllers/authController");
-const { upload, uploadMedia } = require("../../utils/cloudinary");
+const {
+  uploadImage,
+  uploadVideo,
+  uploadMedia,
+} = require("../../utils/cloudinary");
 
 // Listings related--------------------------
 //posts-----------
@@ -40,12 +44,12 @@ router
 router.get("/upload-signature", listingController.uploadSignature);
 router.post(
   "/createPgListing",
-  upload.array("image", 10),
+  uploadImage.array("image", 10),
   listingController.createPgListing,
 );
 router.post(
   "/uploadListingsPhotos/:id",
-  upload.array("image", 10),
+  uploadImage.array("image", 10),
   photoController.uploadListingPhoto,
 );
 
@@ -64,14 +68,49 @@ router
   .patch(listingController.updateRoom)
   .delete(listingController.deleteRoom);
 
+// --------Create Room-----------
+// Method 1:
+// router.post(
+//   "/createRoom",
+//   uploadMedia.fields([
+//     { name: "images", maxCount: 10 },
+//     { name: "video", maxCount: 1 },
+//   ]),
+//   listingController.createPgRoom,
+// );
+
+// Method 2:
+
+router.post("/createRoom", listingController.createPgRoom); // first text data-----
 router.post(
-  "/createRoom",
-  uploadMedia.fields([
-    { name: "images", maxCount: 10 },
-    { name: "video", maxCount: 1 },
-  ]),
-  listingController.createPgRoom,
+  // second image
+  "/createRoom/:roomId/images",
+  (req, res, next) => {
+    (console.log("hello from the middleware before uploading image"), next());
+  },
+  uploadImage.array("images", 10),
+  (err, req, res, next) => {
+    if (err) {
+      console.error("Multer error:", err);
+      return res.status(500).json({ message: err.message });
+    }
+    next();
+  },
+  listingController.uploadRoomImages,
 );
+router.post(
+  "/createRoom/:roomId/video",
+  uploadVideo.single("video"),
+  (err, req, res, next) => {
+    if (err) {
+      console.error("Multer error:", err);
+      return res.status(500).json({ message: err.message });
+    }
+    next();
+  },
+  listingController.uploadRoomVideo,
+);
+
 router.delete("/deleteRoomPhoto/:id", photoController.deletePhoto);
 
 // Review-------------------------------------

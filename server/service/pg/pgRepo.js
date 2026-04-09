@@ -503,8 +503,8 @@ WHERE l.id = $1
       AND l.deleted_at IS NULL;
   `;
 
-    console.log("quey: ", query);
-    console.log("vlues; ", values);
+    // console.log("quey: ", query);
+    // console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
     return rows[0] || null;
   }

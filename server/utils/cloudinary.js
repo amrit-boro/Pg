@@ -15,7 +15,7 @@ cloudinary.config({
 });
 
 // 1) Set up the Cloudinary Storage Engine
-const storage = new CloudinaryStorage({
+const imageStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: "test_folder",
@@ -30,26 +30,41 @@ const storage = new CloudinaryStorage({
 // 2) Use memory storage
 // const storage = multer.memoryStorage();
 
-// photo upload
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
-
-// NEW
-const uploadMedia = multer({
-  storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
-  fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype.startsWith("image/") ||
-      file.mimetype.startsWith("video/")
-    ) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only images or video allowed!"));
-    }
+// 1) -------Video Storage -------
+const videoStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "rooms_video",
+    resource_type: "video",
+    allowed_formats: ["mp4", "mov", "webm", "avi"],
   },
 });
 
-module.exports = { cloudinary, upload, uploadMedia };
+// photo upload
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
+
+const uploadVideo = multer({
+  storage: videoStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 50MB limit for videos
+});
+
+// NEW
+// const uploadMedia = multer({
+//   storage,
+//   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+//   fileFilter: (req, file, cb) => {
+//     if (
+//       file.mimetype.startsWith("image/") ||
+//       file.mimetype.startsWith("video/")
+//     ) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error("Only images or video allowed!"));
+//     }
+//   },
+// });
+
+module.exports = { cloudinary, uploadImage, uploadVideo };
