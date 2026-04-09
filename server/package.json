@@ -25,6 +25,7 @@
     "lucide-react": "^1.7.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^8.0.3",
     "pg": "^8.18.0",
     "streamifier": "^0.1.1"

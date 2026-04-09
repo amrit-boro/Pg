@@ -227,37 +227,90 @@ exports.uploadSignature = catchAsync(async (req, res, next) => {
   });
 });
 
+// exports.createPgListing = catchAsync(async (req, res, next) => {
+//   let uploadResults = [];
+//   console.log("hit================");
+//   console.log("file: ", req.files);
+//   const imageUrls = req.files.map((file) => file.path);
+//   console.log(imageUrls);
+//   try {
+//     if (!req.files || req.files.length < 3) {
+//       return next(new AppError("You must upload atleast 3 photos", 400));
+//     }
+
+//     // 1️⃣ Upload images first (outside transaction)
+//     uploadResults = await Promise.all(
+//       req.files.map((file) => streamUpload(file.buffer)),
+//     );
+
+//     const client = await pool.connect();
+
+//     await client.query("BEGIN");
+
+//     // 2️⃣ Create listing
+//     const newListing = await pgRepo.createListing(client, {
+//       ...req.body,
+//     });
+
+//     if (!newListing) {
+//       await client.query("ROLLBACK");
+//       return next(new AppError("Failed to create listing", 500));
+//     }
+
+//     // 3️⃣ Prepare photo payload
+//     const photos = uploadResults.map((result, i) => ({
+//       listing_id: newListing.id,
+//       url: result.secure_url,
+//       public_id: result.public_id,
+//       caption: req.body.caption || null,
+//       is_cover: i === 0,
+//       sort_order: i,
+//     }));
+
+//     // Saved to Database
+//     const savedPhotos = await pgRepo.bulkInsertPhotos(client, photos);
+
+//     await client.query("COMMIT");
+
+//     res.status(201).json({
+//       success: true,
+//       listing: newListing,
+//       photos: savedPhotos,
+//     });
+//   } catch (error) {
+//     await client.query("ROLLBACK");
+//     // Cleanup uploaded images if DB fails
+//     if (uploadResults.length > 0) {
+//       await Promise.all(
+//         uploadResults.map((r) => cloudinary.uploader.destroy(r.public_id)),
+//       );
+//     }
+
+//     next(error); // ✅ Forward to global error handler
+//   } finally {
+//     client.release();
+//   }
+// });
+
 exports.createPgListing = catchAsync(async (req, res, next) => {
   const client = await pool.connect();
-  let uploadResults = [];
-
   try {
     if (!req.files || req.files.length < 3) {
-      return next(new AppError("You must upload atleast 3 photos", 400));
+      return next(new AppError("You must upload at least 3 photos", 400));
     }
 
-    // 1️⃣ Upload images first (outside transaction)
-    uploadResults = await Promise.all(
-      req.files.map((file) => streamUpload(file.buffer)),
-    );
-
     await client.query("BEGIN");
-
-    // 2️⃣ Create listing
-    const newListing = await pgRepo.createListing(client, {
-      ...req.body,
-    });
+    const newListing = await pgRepo.createListing(client, { ...req.body });
 
     if (!newListing) {
       await client.query("ROLLBACK");
       return next(new AppError("Failed to create listing", 500));
     }
 
-    // 3️⃣ Prepare photo payload
-    const photos = uploadResults.map((result, i) => ({
+    const photos = req.files.map((file, i) => ({
       listing_id: newListing.id,
-      url: result.secure_url,
-      public_id: result.public_id,
+      url: file.path,
+      public_id: file.filename,
       caption: req.body.caption || null,
       is_cover: i === 0,
       sort_order: i,
@@ -274,14 +327,12 @@ exports.createPgListing = catchAsync(async (req, res, next) => {
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    // Cleanup uploaded images if DB fails
-    if (uploadResults.length > 0) {
+    if (req.files && req.files.length > 0) {
       await Promise.all(
-        uploadResults.map((r) => cloudinary.uploader.destroy(r.public_id)),
+        req.files.map((file) => cloudinary.uploader.destroy(file.filename)),
       );
     }
-
-    next(error); // ✅ Forward to global error handler
+    next(error);
   } finally {
     client.release();
   }

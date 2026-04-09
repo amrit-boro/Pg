@@ -1,6 +1,7 @@
 // cloudinary.js
 
 const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
 const dotenv = require("dotenv");
 
@@ -13,8 +14,21 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Use memory storage
-const storage = multer.memoryStorage();
+// 1) Set up the Cloudinary Storage Engine
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "test_folder",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [
+      { width: 1200, height: 800, crop: "limit" }, // Max dimensions
+      { quality: "auto", fetch_format: "auto" }, // Let Cloudinary auto-compress
+    ],
+  },
+});
+
+// 2) Use memory storage
+// const storage = multer.memoryStorage();
 
 // photo upload
 const upload = multer({
