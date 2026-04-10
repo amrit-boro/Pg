@@ -114,8 +114,10 @@ exports.createReview = catchAsync(async (req, res, next) => {
 
 exports.getListingAggregates = async (req, res) => {
   const { id } = req.params;
-  console.log("id: ", id);
-  const review = await ReviewRepo.getReview(id);
+  const limit = parseInt(req.query.limit) || 4;
+  const offset = parseInt(req.query.offset) || 0;
+
+  const review = await ReviewRepo.getReview(id, limit, offset);
   res.status(200).json({
     success: true,
     data: review,

@@ -425,6 +425,8 @@ CREATE INDEX idx_payments_status  ON payments (status);
 -- 11. REVIEWS
 -- ============================================================
 
+
+
 CREATE TABLE reviews (
     id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_id      UUID        NOT NULL UNIQUE REFERENCES bookings(id),
@@ -432,6 +434,10 @@ CREATE TABLE reviews (
     reviewee_id     UUID        NOT NULL REFERENCES users(id), -- Who is receiving the feedback?
     listing_id      UUID        REFERENCES listings(id),   -- NULL for host/guest reviews
     overall_rating  NUMERIC     NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+        
+    stay_duration_value  INT,
+    stay_duration_unit   VARCHAR(10) CHECK (stay_duration_unit IN ('days', 'months', 'years')),
+
     cleanliness     SMALLINT    CHECK (cleanliness BETWEEN 1 AND 5), -- Measures how clean the place was
     accuracy        SMALLINT    CHECK (accuracy BETWEEN 1 AND 5), -- Measures how truthful the listing description was //  Focus: “Did reality match what was advertised?”
     communication   SMALLINT    CHECK (communication BETWEEN 1 AND 5), -- Measures how well the other person communicated
@@ -442,6 +448,9 @@ CREATE TABLE reviews (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+
+
 CREATE INDEX idx_reviews_listing_id ON reviews(listing_id);
 CREATE INDEX idx_reviews_reviewee_id ON reviews(reviewee_id);
 -- Composite index for loading the most recent reviews for a listing
