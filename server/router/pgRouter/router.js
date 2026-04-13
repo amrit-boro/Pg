@@ -59,9 +59,7 @@ router.delete("/deleteListingPhoto/:id", photoController.deleteListingPhoto);
 // =======================================================
 
 router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
-console.log("===============");
 
-console.log("********");
 router
   .route("/room/:roomId")
   .get(listingController.getRoom)

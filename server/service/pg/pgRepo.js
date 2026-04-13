@@ -507,7 +507,8 @@ class PgRepo {
     // console.log("quey: ", query);
     // console.log("vlues; ", values);
     const { rows } = await pool.query(query, values);
-    return rows[0] || null;
+    console.log("rows: ", rows);
+    return rows[0];
   }
 
   static async createRoom(client, roomData) {
@@ -950,6 +951,8 @@ class PgRepo {
   static async getSavedRooms(userId) {
     const query = `
       SELECT 
+        l.title AS Ltitle,
+        l.id AS listing_id,
         r.id,
         r.title,
         r.room_number,
@@ -959,6 +962,7 @@ class PgRepo {
         rp.url
 
       FROM saved_rooms sr 
+      JOIN listings l ON l.id = sr.listing_id
       JOIN rooms r
         ON r.id = sr.room_id
       LEFT JOIN LATERAL(
@@ -974,6 +978,7 @@ class PgRepo {
     `;
 
     const { rows } = await pool.query(query, [userId]);
+    console.log("rows: ", rows);
     return rows;
   }
 

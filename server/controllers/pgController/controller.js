@@ -149,12 +149,7 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
 
   const rooms = await pgRepo.getAllRoomsById(filters, currentUser);
   if (!rooms || rooms.rooms.length === 0) {
-    return res.status(200).json({
-      success: true,
-      message: "Oops room not found ):",
-      total: 0,
-      data: [],
-    });
+    return next(new AppError("Room not found!", 200));
   }
   res.status(200).json({
     total: rooms.rooms.length,
