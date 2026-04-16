@@ -41,7 +41,7 @@ app.use("/api", limiter);
 // Enable CORS
 app.use(
   cors({
-    origin: "http://localhost:5173", // change in production
+    origin: "http://10.119.168.165:5173", // change in production
     credentials: true,
   }),
 );
@@ -74,6 +74,10 @@ if (process.env.NODE_ENV === "development") {
 // ==================== ROUTES ====================
 
 // Users
+
+app.get("/", (req, res) => {
+  res.send("Backend is working");
+});
 app.use("/api/v1/users", userRouter);
 
 // Listings
