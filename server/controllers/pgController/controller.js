@@ -1,4 +1,5 @@
 const pgRepo = require("../../service/pg/pgRepo");
+const RoomRepo = require("../../service/filterRoom/filterRoom");
 const { cloudinary } = require("../../utils/cloudinary");
 const pool = require("../../config/db");
 const streamUpload = require("../../utils/streamUpload");
@@ -161,23 +162,37 @@ exports.getAllRoomsByPgId = catchAsync(async (req, res, next) => {
 // UPDATE ROOM BY ID ==========================================
 
 exports.updateRoom = catchAsync(async (req, res, next) => {
-  console.log("callled");
-  const updateFields = req.body;
-  console.log("fiels: ", updateFields);
   const { roomId: id } = req.params;
-  console.log("id: ", id);
-  const existingRoom = await pgRepo.getRoomById(id);
-  if (!existingRoom) {
-    return next(new AppError(`Room not found with Id: ${id}!`, 404));
+  const { deletedPhotoIds, newPhotos, ...roomData } = req.body;
+
+  // STEP 1: Update text fields (Name, Price, etc.)
+  if (Object.keys(roomData).length > 0) {
+    await pgRepo.updateRoomById(roomData, id);
   }
-  console.log("updateFields: ", updateFields, "roomID: ", id);
-  const updatedRoom = await pgRepo.updateRoomById(updateFields, id);
-  if (!updatedRoom) {
-    return next(new AppError("Room not found or deleted!", 404));
+
+  // 2. TASK A: Handle Deletions (Cloudinary + DB)
+  if (deletedPhotoIds && deletedPhotoIds.length > 0) {
+    // Get public_ids first so we can tell Cloudinary to delete them
+    const photosToDelete = await RoomRepo.getPhotosByIds(deletedPhotoIds);
+
+    for (const photo of photosToDelete) {
+      if (photo.public_id) {
+        await cloudinary.uploader.destroy(photo.public_id);
+      }
+    }
+
+    // Remove records from the database
+    await RoomRepo.deletePhotosByIds(deletedPhotoIds);
   }
-  res.status(201).json({
+
+  // STEP 3: Add only the new photos to the DB
+  if (newPhotos?.length > 0) {
+    console.log(newPhotos);
+    await RoomRepo.addPhotosToRoom(id, newPhotos);
+  }
+  res.status(200).json({
     success: true,
-    data: updatedRoom,
+    message: "Room updated successfully",
   });
 });
 
@@ -501,10 +516,10 @@ exports.createPgRoom = catchAsync(async (req, res, next) => {
 });
 
 // Upload image room
+
 exports.uploadRoomImages = catchAsync(async (req, res, next) => {
   const { roomId } = req.params;
   // Verify file exists
-  console.log("hello");
   if (!req.files || req.files.length === 0) {
     return next(new AppError("No images provided for upload!", 400));
   }

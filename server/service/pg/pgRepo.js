@@ -451,7 +451,7 @@ class PgRepo {
             'room_id', r.id,
             'room_type', r.room_type,
             'status', r.status,
-            'room_no', r.room_number,
+            'room_number', r.room_number,
             'beds', r.available_beds,
             'price_per_month', r.price_per_month,
             'price_per_week', r.price_per_week,
@@ -1047,7 +1047,6 @@ class PgRepo {
       WHERE id = $1;
     `;
     const { rows } = await pool.query(query, [listing_id]);
-    console.log(rows);
     return rows;
   }
 }

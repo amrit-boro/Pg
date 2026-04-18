@@ -346,6 +346,64 @@ class FilterRoom {
     const { rows } = await pool.query(baseQuery, values);
     return rows;
   }
+
+  static async roomPhotos(roomId) {
+    const query = `
+      SELECT 
+        id,room_id,url,is_cover
+      FROM rooms_photos 
+      WHERE room_id = $1
+    `;
+    const { rows } = await pool.query(query, [roomId]);
+    return rows;
+  }
+
+  static async getPhotosByIds(photoIds) {
+    const query = `
+      SELECT 
+        public_id
+      FROM rooms_photos
+      WHERE id = ANY($1)
+    `;
+
+    const { rows } = await pool.query(query, [photoIds]);
+    return rows;
+  }
+
+  static async deletePhotosByIds(photoIds) {
+    const query = `
+      DELETE FROM rooms_photos WHERE id = ANY($1)
+    `;
+    await pool.query(query, [photoIds]);
+  }
+
+  static async addPhotosToRoom(roomId, newPhotos) {
+    const values = [];
+
+    const placeholders = newPhotos
+      .map((photo, i) => {
+        const offset = i * 4;
+
+        values.push(
+          roomId,
+          photo.url,
+          photo.public_id,
+          photo.is_cover ?? false,
+        );
+
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
+      })
+      .join(", ");
+
+    const query = `
+    INSERT INTO rooms_photos (room_id, url, public_id, is_cover)
+    VALUES ${placeholders}
+    RETURNING *;
+  `;
+
+    console.log(query, values);
+    return pool.query(query, values);
+  }
 }
 
 module.exports = FilterRoom;

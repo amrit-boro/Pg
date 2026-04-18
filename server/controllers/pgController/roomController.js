@@ -1,4 +1,5 @@
 const PgRepo = require("../../service/pg/pgRepo");
+const RoomRepo = require("../../service/filterRoom/filterRoom");
 const AppError = require("../../utils/appError");
 const catchAsync = require("../../utils/catchAsync");
 
@@ -33,5 +34,15 @@ exports.deleteSavedRoom = catchAsync(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Successfully Deleted!!",
+  });
+});
+
+// FETCH ALL PHOTOS
+
+exports.AllRoomPhotos = catchAsync(async (req, res, next) => {
+  const roomId = req.params.roomId;
+  const rphotos = await RoomRepo.roomPhotos(roomId);
+  res.status(200).json({
+    data: rphotos,
   });
 });

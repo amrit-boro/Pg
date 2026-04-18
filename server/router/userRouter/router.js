@@ -4,11 +4,6 @@ const authController = require("../../controllers/authController");
 const { upload } = require("../../utils/cloudinary");
 const router = express.Router();
 
-router.param("id", (req, res, next, val) => {
-  console.log(`Tour id is : ${val}`);
-  next();
-});
-
 router.get("/getAllUser", authController.protect, userController.getAllUsers);
 
 // router.post("/signUp", upload.single("image"), authController.signUp);

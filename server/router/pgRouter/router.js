@@ -17,6 +17,9 @@ router.get("/search", listingController.search);
 router.get("/top-4", listingController.getListings); // first 4 listings
 // router.get("/allListings", listingController.getAllListings);
 router.get("/filters", listingController.filterListings);
+
+// signature...................
+router.get("/upload-signature", listingController.uploadSignature);
 router.get("/total/:id", listingController.getTotal);
 // Saved listings
 router
@@ -40,8 +43,6 @@ router
   .patch(listingController.updateListings)
   .delete(listingController.deleteListing);
 
-// signature...................
-router.get("/upload-signature", listingController.uploadSignature);
 router.post(
   "/createPgListing",
   uploadImage.array("image", 10),
@@ -63,7 +64,7 @@ router.get("/:listingId/rooms", listingController.getAllRoomsByPgId);
 router
   .route("/room/:roomId")
   .get(listingController.getRoom)
-  .patch(listingController.updateRoom)
+  .patch(uploadImage.array("image"), listingController.updateRoom)
   .delete(listingController.deleteRoom);
 
 // --------Create Room-----------
@@ -81,19 +82,8 @@ router
 
 router.post("/createRoom", listingController.createPgRoom); // first text data-----
 router.post(
-  // second image
   "/createRoom/:roomId/images",
-  (req, res, next) => {
-    (console.log("hello from the middleware before uploading image"), next());
-  },
   uploadImage.array("images", 10),
-  (err, req, res, next) => {
-    if (err) {
-      console.error("Multer error:", err);
-      return res.status(500).json({ message: err.message });
-    }
-    next();
-  },
   listingController.uploadRoomImages,
 );
 router.post(
@@ -110,6 +100,9 @@ router.post(
 );
 
 router.delete("/deleteRoomPhoto/:id", photoController.deletePhoto);
+
+// EDIT
+router.get("/room/:roomId/photos", roomController.AllRoomPhotos);
 
 // Review-------------------------------------
 router.post("/createReview", listingController.reviewRoom);
