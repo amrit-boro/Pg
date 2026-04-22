@@ -204,7 +204,7 @@ CREATE INDEX idx_listings_title_trgm    ON listings USING GIN (title gin_trgm_op
 -- ============================================================
 
 -- =============================================================
--- ROOM SPECIFIC----------------- NEW🌟
+-- ROOM SPECIFIC----------------- NEW
 CREATE TABLE rooms (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
@@ -433,7 +433,9 @@ CREATE TABLE reviews (
     reviewer_id     UUID        NOT NULL REFERENCES users(id), -- Who is giving the feedback?
     reviewee_id     UUID        NOT NULL REFERENCES users(id), -- Who is receiving the feedback?
     listing_id      UUID        REFERENCES listings(id),   -- NULL for host/guest reviews
-    overall_rating  NUMERIC     NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+    rating  NUMERIC     NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+    review_count    INTEGER DEFAULT 0,
+
         
     stay_duration_value  INT,
     stay_duration_unit   VARCHAR(10) CHECK (stay_duration_unit IN ('days', 'months', 'years')),
@@ -448,6 +450,9 @@ CREATE TABLE reviews (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+
+
 
 
 

@@ -34,9 +34,22 @@ exports.deleteUser = catchAsync(async (req, res) => {
     });
   }
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "User deleted successfully",
     data: deleteuser,
+  });
+});
+
+// USER-DETAILS
+exports.details = catchAsync(async (req, res) => {
+  // const { id } = req.user;
+  const id = "088ce851-f89e-400f-8e51-c32c7d6d2eaa";
+  console.log("user id", id);
+  const userDetails = await userRepo.userDetails(id);
+
+  res.status(200).json({
+    success: true,
+    data: userDetails,
   });
 });

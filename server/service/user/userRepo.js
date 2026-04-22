@@ -48,6 +48,44 @@ class UserRepo {
     const { rows } = await pool.query(query, values);
     return rows[0];
   }
+
+  // USER-DETAILS==========================================
+  static async userDetails(userId) {
+    const query = `
+    SELECT 
+      CONCAT_WS(' ', u.first_name, u.last_name) AS name,
+      u.email,
+      u.phone,
+      u.avatar_url,
+      u.created_at,
+      u.bio,
+  
+
+      loc.address_line1,
+      loc.address_line2,
+      loc.city,
+
+      COALESCE(ROUND(AVG(re.rating)), 0) AS avg_rating,
+      COUNT(DISTINCT re.id) AS review_count
+
+    FROM users u
+    LEFT JOIN listings l 
+      ON u.id = l.host_id
+    LEFT JOIN locations loc
+      ON l.location_id = loc.id
+    LEFT JOIN reviews re
+      ON u.id = re.reviewee_id
+
+    WHERE u.id = $1
+
+    GROUP BY 
+      u.id,
+      loc.id
+  `;
+
+    const { rows } = await pool.query(query, [userId]);
+    return rows[0];
+  }
 }
 
 module.exports = UserRepo;

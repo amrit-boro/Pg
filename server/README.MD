@@ -10,3 +10,9 @@ SQL
 CREATE INDEX idx_rooms_listing_type_sort
 ON rooms (listing_id, r_type, avg_rating DESC, price_per_month ASC);
 Photos Index: CREATE INDEX idx_rooms_photos_room_id ON rooms_photos(room_id);
+
+avatar url ; <img
+src={user.avatar || "https://ui-avatars.com/api/?name=Arjun+Sharma&background=6366f1&color=fff"}
+alt="Profile"
+className="w-16 h-16 rounded-full object-cover"
+/>

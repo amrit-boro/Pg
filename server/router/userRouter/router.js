@@ -1,7 +1,6 @@
 const express = require("express");
 const userController = require("../../controllers/userController/controller");
 const authController = require("../../controllers/authController");
-const { upload } = require("../../utils/cloudinary");
 const router = express.Router();
 
 router.get("/getAllUser", authController.protect, userController.getAllUsers);
@@ -10,7 +9,7 @@ router.get("/getAllUser", authController.protect, userController.getAllUsers);
 router.get("/login", authController.logIn);
 router.post("/forgotPassword", authController.forgotPassword);
 // router.post("/resetPassword/:token", authController.resetPassword);
-
+router.get("/details", userController.details);
 router
   .route("/")
   .get(userController.getUser)
